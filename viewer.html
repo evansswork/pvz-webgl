@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Viewer Karakter — PvZ WebGL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/core/hud.css">
+</head>
+<body>
+<!-- Viewer satu karakter (untuk demo 5 animasi rubrik & gambar laporan).
+     viewer.html?c=sunflower | peashooter | zombie                         -->
+<canvas id="gl" aria-label="Karakter 3D (WebGL)"></canvas>
+<div id="letterbox"><div class="bar top"></div><div class="bar bottom"></div></div>
+<div id="caption"></div>
+<div id="err" hidden></div>
+
+<div id="hud">
+  <div class="brand">
+    <span class="tag">Plants vs. Zombies · Grafkom UTS</span>
+    <h1 id="title"></h1>
+    <p id="desc"></p>
+  </div>
+  <div class="side">
+    <button class="chip trailer" data-act="trailer"><kbd>T</kbd><span>Putar trailer</span></button>
+    <button class="chip" id="regrow"><kbd>G</kbd><span></span></button>
+    <button class="chip" data-act="bg"><kbd>B</kbd><span>Ganti latar</span></button>
+    <button class="chip on" data-act="axis"><kbd>X</kbd><span>Tampilkan sumbu</span></button>
+    <button class="chip" data-act="reset"><kbd>R</kbd><span>Reset kamera</span></button>
+    <button class="chip" data-act="hide"><kbd>H</kbd><span>Sembunyikan UI</span></button>
+  </div>
+  <div class="dock" id="dock" role="toolbar" aria-label="Animasi"></div>
+  <div class="hint">Seret untuk memutar kamera · scroll untuk zoom</div>
+</div>
+
+<script type="module" src="src/viewer.js"></script>
+</body>
+</html>

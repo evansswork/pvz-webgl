@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Plants vs. Zombies — WebGL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&display=swap" rel="stylesheet">
+<style>
+  html, body { height: 100%; margin: 0; background: #030508; overflow: hidden; }
+  canvas { width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+  /* judul di pojok kiri atas */
+  #title {
+    position: fixed; top: max(20px, env(safe-area-inset-top)); left: 24px; margin: 0;
+    font: 700 clamp(22px, 3.2vw, 40px)/1 "Fredoka", "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+    letter-spacing: .01em; color: #fdf7e4; pointer-events: none; user-select: none;
+    text-shadow: 0 2px 0 rgba(0,0,0,.45), 0 4px 18px rgba(0,0,0,.55);
+  }
+  #title .p { color: #9fdc4a; }
+  #title .v { font-size: .6em; color: #ffd23f; margin: 0 .12em; vertical-align: .18em; }
+  #title .z { color: #c9d3b8; }
+</style>
+</head>
+<body>
+<!-- Layar bersih: hanya judul. Kontrol keyboard ada di README.md -->
+<canvas id="c"></canvas>
+<h1 id="title"><span class="p">Plants</span><span class="v">vs.</span><span class="z">Zombies</span></h1>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

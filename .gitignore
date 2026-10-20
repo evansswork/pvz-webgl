@@ -1,0 +1,17 @@
+# File sistem operasi dan editor
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+
+# Konfigurasi lokal dan kredensial
+.env
+.env.*
+!.env.example
+
+# Dependensi dan output tooling lokal
+node_modules/
+dist/
+*.log
+__pycache__/
