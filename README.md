@@ -12,8 +12,8 @@ Lengkapi bagian **belum diisi** sebelum dikumpulkan. Pembagian karakter di tabel
 
 | Data | Isi |
 |---|---|
-| Mata kuliah | Grafika Komputer — UTS |
-| Kelas lengkap | **A1**, gunakan format lengkap, misalnya A1 |
+| Mata kuliah | Grafika Komputer - Project UTS |
+| Kelas lengkap | **A1** |
 | Kelompok | **3** |
 | Anggota pembuat Sunflower | **C14210281 Giulian Suryadinata** |
 | Anggota pembuat Peashooter | **C14240079 Evan Suryadinata** |
