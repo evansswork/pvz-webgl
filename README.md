@@ -13,15 +13,14 @@ Lengkapi bagian **belum diisi** sebelum dikumpulkan. Pembagian karakter di tabel
 | Data | Isi |
 |---|---|
 | Mata kuliah | Grafika Komputer — UTS |
-| Kelas lengkap | **Belum diisi**, gunakan format lengkap, misalnya A1 |
-| Kelompok | **Belum diisi** |
-| Anggota pembuat Sunflower | **Belum diisi: nama dan NRP/NIM** |
-| Anggota pembuat Peashooter | **Belum diisi: nama dan NRP/NIM** |
-| Anggota pembuat Zombie | **Belum diisi: nama dan NRP/NIM** |
-| Kontribusi environment dan integrasi | **Belum diisi sesuai pekerjaan anggota** |
+| Kelas lengkap | **A1**, gunakan format lengkap, misalnya A1 |
+| Kelompok | **3** |
+| Anggota pembuat Sunflower | **C14210281 Giulian Suryadinata** |
+| Anggota pembuat Peashooter | **C14240079 Evan Suryadinata** |
+| Anggota pembuat Zombie | **C14240154 Nataniel Joshe** |
+| Kontribusi environment dan integrasi | **C14240154 Nataniel Joshe & C14240079 Evan Suryadinata S** |
 | Video trailer YouTube, sekitar 1–2 menit | **Belum diisi** |
-| Dokumen laporan/penjelasan | **Belum diisi** |
-| Gambar karakter | **Belum ditambahkan: minimal 2 sudut pandang per karakter** |
+| Dokumen laporan/penjelasan | **C14210281,C14240079,C14240154** |
 
 ## Menjalankan project
 
