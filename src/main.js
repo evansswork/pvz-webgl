@@ -16,11 +16,10 @@
    Lainnya      : X tampilkan sumbu arbitrary axis
    ========================================================================= */
 
-import { cv, gl } from "./env/graveyard/webgl.js";
-import { createGraveyardScene } from "./env/graveyard/graveyardScene.js";
+import { cv, gl, createGraveyardScene } from "./env/graveyard/graveyardScene.js";
 import { createHouseScene } from "./env/house/houseScene.js";
 import { createHighwayScene } from "./env/road/highwayScene.js";
-import { persp, mul, m4, M } from "./env/core/transform.js";
+import { persp, mul, m4, M } from "./core/math.js";
 import { DroneCamera } from "./drone.js";
 import { Renderer } from "./core/renderer.js";
 import { NIGHT, TILE, LAWN_Y, lawnTile, toonNightEnv } from "./lighting.js";
