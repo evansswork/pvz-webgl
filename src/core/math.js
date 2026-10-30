@@ -178,3 +178,121 @@ export const Ease = {
   outElastic: (t) => (t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1),
   smooth: (t) => t * t * (3 - 2 * t),
 };
+
+
+/* ======================== ALIAS & HELPER ZOMBIE ========================
+   Menyatukan fungsi-fungsi yang dipakai Zombie (sebelumnya di zombie/libs.js)
+   agar langsung menggunakan V3 dan M4 dari core/math.js tanpa duplikasi.   */
+export const m4 = {
+  I: M4.identity,
+  T: M4.translation,
+  S: M4.scaling,
+  X: (a) => M4.rotationX(a),
+  Y: (a) => M4.rotationY(a),
+  Z: (a) => M4.rotationZ(a),
+};
+export const M = M4.chain;
+export const axisRot = M4.rotationAxis;
+export const inv = M4.invert;
+export const persp = M4.perspective;
+export const look = M4.lookAt;
+export const sub = V3.sub;
+export const nrm = V3.norm;
+export const cr = V3.cross;
+export const dt = V3.dot;
+
+/** Transpose matriks 4x4 */
+export function tr(a) {
+  return [
+    a[0], a[4], a[8], a[12],
+    a[1], a[5], a[9], a[13],
+    a[2], a[6], a[10], a[14],
+    a[3], a[7], a[11], a[15],
+  ];
+}
+
+/** Proyeksi ortografis (dipakai shadow map zombie) */
+export function ortho(l, r, b, t, n, f) {
+  const o = new Float32Array(16);
+  o[0] = 2 / (r - l);
+  o[5] = 2 / (t - b);
+  o[10] = -2 / (f - n);
+  o[12] = -(r + l) / (r - l);
+  o[13] = -(t + b) / (t - b);
+  o[14] = -(f + n) / (f - n);
+  o[15] = 1;
+  return o;
+}
+
+/** Matriks segmen silinder dari titik A ke titik B (dipakai tulang/lengan/kaki zombie) */
+export function segBetween(A, B) {
+  const d = sub(B, A),
+    len = Math.hypot(...d),
+    n = nrm(d);
+  const ax = [n[2], 0, -n[0]],
+    s = Math.hypot(...ax);
+  const R =
+    s < 1e-6
+      ? n[1] > 0
+        ? m4.I()
+        : m4.X(Math.PI)
+      : axisRot(ax, Math.atan2(s, n[1]));
+  return M(
+    m4.T((A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2),
+    R,
+    m4.S(1, len, 1),
+  );
+}
+
+// Alias kompatibilitas penuh untuk semua modul (graveyard, house, highway, drone, main)
+M4.mul = M4.multiply;
+M4.persp = M4.perspective;
+M4.look = M4.lookAt;
+M4.inv = M4.invert;
+M4.xf = M4.transformPoint;
+M4.xd = M4.transformDir;
+
+export const mul = M4.multiply;
+export const add = V3.add;
+export const cross = V3.cross;
+export const dot = V3.dot;
+export const lerp3 = V3.lerp;
+export const lerp = (a, b, t) => a + (b - a) * t;
+export const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16) / 255);
+
+export function pivotRot(pivot, rotationMatrix) {
+  return M(
+    m4.T(pivot[0], pivot[1], pivot[2]),
+    rotationMatrix,
+    m4.T(-pivot[0], -pivot[1], -pivot[2]),
+  );
+}
+
+// Procedural noise 2D (dipakai gundukan tanah makam di mound.js)
+export const hash2 = (x, y) => {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+export function valueNoise(x, y) {
+  const xi = Math.floor(x),
+    yi = Math.floor(y);
+  const fx = x - xi,
+    fy = y - yi;
+  const u = fx * fx * (3 - 2 * fx),
+    v = fy * fy * (3 - 2 * fy);
+  const a = hash2(xi, yi),
+    b = hash2(xi + 1, yi),
+    c = hash2(xi, yi + 1),
+    d = hash2(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+export function fbm(x, y) {
+  return (
+    (0.5 * valueNoise(x, y) + 0.25 * valueNoise(x * 2, y * 2) + 0.125 * valueNoise(x * 4, y * 4)) /
+    0.875
+  );
+}
+export const smoothstep = (a, b, v) => {
+  const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};

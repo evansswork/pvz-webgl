@@ -9,7 +9,7 @@
    • V  → pindah sudut pandang preset (tanaman, panorama, rumah, kuburan)
    ========================================================================= */
 
-import { look } from "./env/core/transform.js";
+import { look } from "./core/math.js";
 
 const lerp = (a, b, k) => a + (b - a) * k;
 

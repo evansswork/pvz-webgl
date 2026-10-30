@@ -10,8 +10,8 @@
  * ==============================================================================
  */
 
-import { m4, M, sub, nrm, tr, inv, seg, axisRot, cr, dt, persp, look, ortho } from "./libs.js";
-import { pack, grid, normals, ellipsoid, frustum, cylinder, torus, paraboloid, box, bz, tube, leaf, prism, jacket, ragged } from "./geometry.js";
+import { m4, M, sub, nrm, tr, inv, segBetween as seg, axisRot, cr, dt, persp, look, ortho } from "../../core/math.js";
+import { pack, grid, normals, zEllipsoid as ellipsoid, frustum, zCylinder as cylinder, zTorus as torus, paraboloid, zBox as box, bz, zTube as tube, zLeaf as leaf, prism, jacket, ragged } from "../../core/geometry.js";
 import { ZombiePart, BoneNode } from './ZombieNode.js';
 
       /* ============ WEBGL CONTEXT & SHADER DEFINITIONS ============ */

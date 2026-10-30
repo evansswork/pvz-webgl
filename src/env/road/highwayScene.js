@@ -20,6 +20,7 @@
  */
 
 import { NIGHT_GLSL } from "../../lighting.js";
+import { hex, sub, cross } from "../../core/math.js";
 
 export function createHighwayScene(gl) {
   const P = [];
@@ -29,13 +30,6 @@ export function createHighwayScene(gl) {
   const WI = [];
   let vc = 0;
 
-  const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16) / 255);
-  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-  const cross = (a, b) => [
-    a[1] * b[2] - a[2] * b[1],
-    a[2] * b[0] - a[0] * b[2],
-    a[0] * b[1] - a[1] * b[0],
-  ];
 
   function addFaces(color, faces) {
     const col = hex(color);
