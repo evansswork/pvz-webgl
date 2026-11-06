@@ -19,7 +19,7 @@
 import { cv, gl, createGraveyardScene } from "./env/graveyard/graveyardScene.js";
 import { createHouseScene } from "./env/house/houseScene.js";
 import { createHighwayScene } from "./env/road/highwayScene.js";
-import { persp, mul, m4, M } from "./core/math.js";
+import { persp, mul, m4, M, Ease } from "./core/math.js";
 import { DroneCamera } from "./drone.js";
 import { Renderer } from "./core/renderer.js";
 import { NIGHT, TILE, LAWN_Y, lawnTile, toonNightEnv } from "./lighting.js";
@@ -72,10 +72,11 @@ const ZOMBIE_PATH = [
   [LANE3, -1140],               // belok ke jalur Peashooter
   [LANE3, lawnTile(3, 3)[2]],   // berhenti 2 petak di depan Peashooter
 ];
-const zb = { x: 0, z: 0, y: 0, yaw: Math.PI, leg: 0, walkTime: 0, walking: false, delay: 0 };
+const zb = { x: 0, z: 0, y: 0, yaw: Math.PI, leg: 0, walkTime: 0, walking: false, delay: 0, spawnT: 0 };
 function zombieReset() {
   zb.x = ZOMBIE_PATH[0][0]; zb.z = ZOMBIE_PATH[0][1]; zb.yaw = Math.PI;
   zb.leg = 1; zb.walkTime = 0; zb.walking = false; zb.delay = 1.5;   // diam sebentar, lalu jalan
+  zb.spawnT = 0;
   zb.y = groundAt(zb.x, zb.z);
 }
 // ketinggian permukaan: tanah kuburan → apron → trotoar → aspal → trotoar → rumput halaman
@@ -88,6 +89,7 @@ function groundAt(x, z) {
   return LAWN_Y;
 }
 function updateZombie(dt) {
+  zb.spawnT += dt;
   if (zb.delay > 0) { zb.delay -= dt; zb.walking = false; }
   else if (zb.leg < ZOMBIE_PATH.length) {
     const [tx, tz] = ZOMBIE_PATH[zb.leg];
@@ -111,7 +113,11 @@ function updateZombie(dt) {
   }
   zb.y += (groundAt(zb.x, zb.z) - zb.y) * Math.min(1, dt * 10);   // naik-turun trotoar dengan halus
 }
-const zombieWorld = () => M(m4.T(zb.x, zb.y, zb.z), m4.Y(zb.yaw), m4.S(ZOMBIE_SCALE, ZOMBIE_SCALE, ZOMBIE_SCALE));
+// mengatur kecepatan scale
+const zombieWorld = () => {
+  const s = ZOMBIE_SCALE * Math.max(0, Ease.outBack(Math.min(1, zb.spawnT / 3)));
+  return M(m4.T(zb.x, zb.y, zb.z), m4.Y(zb.yaw), m4.S(s, s, s));
+};
 // kacang mengenai zombie kalau masuk silinder badan (radius ~0.45, tinggi ~2.2 satuan lokal)
 function zombieHit(p) {
   return Math.hypot(p[0] - zb.x, p[2] - zb.z) < 0.45 * ZOMBIE_SCALE && p[1] > zb.y && p[1] < zb.y + 2.2 * ZOMBIE_SCALE;
@@ -140,6 +146,7 @@ window.addEventListener("keydown", (e) => {
   if (m) m[0].ch.trigger(m[1]);
   else if (e.code === "KeyX") showAxis = !showAxis;
   else if (e.code === "KeyJ") zombieReset();
+  else if (e.code === "KeyG") { sunflower.ch.trigger("grow"); peashooter.ch.trigger("grow"); zombieReset(); }
 });
 
 /* ---------------- 5. Loop render ---------------- */

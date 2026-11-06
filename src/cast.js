@@ -17,6 +17,8 @@ export function placeCharacter(gl, spec, { pos, yaw = 0, scale = 1, extra = {} }
   const stage = M4.chain(M4.translation(...pos), M4.rotationY(yaw), M4.scaling(scale, scale, scale));
   const toWorld = (p) => M4.transformPoint(stage, p);
   const ch = spec.build({ gl, fx, toWorld, ...(typeof extra === "function" ? extra(toWorld) : extra) });
+  // buat scale tanaman ketika pertama kali spawn
+  // if (spec.onStart) spec.onStart(ch);
   const toLocal = M4.invert(stage);
 
   // penanda sumbu rotasi (tombol X) — sama seperti di viewer
