@@ -67,7 +67,7 @@ const ZOMBIE_SPEED = 55 * (ZOMBIE_SCALE / 75);     // = kecepatan jalan teman (5
 const zombie = createZombieScene(gl);
 const LANE3 = lawnTile(3, 0)[0];
 const ZOMBIE_PATH = [
-  [125, -600],                  // muncul di jalan setapak kuburan
+  [125, -150],                  // muncul dari bagian tengah kuburan (awal jalan setapak)
   [125, -1050],                 // lewat gerbang, menyeberang jalan, masuk halaman
   [LANE3, -1140],               // belok ke jalur Peashooter
   [LANE3, lawnTile(3, 3)[2]],   // berhenti 2 petak di depan Peashooter
