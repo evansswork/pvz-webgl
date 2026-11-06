@@ -30,6 +30,7 @@ Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang di
 * **Kerutan Dahi**: 2 baris *ellipsoid* tipis melintang horizontal yang dimiringkan mengikuti profil dahi zombie.
 * **Rahang Bawah (Mandibula)**:
   * **Tulang Lengkung Rahang**: *Mesh tube* yang disapu mengikuti **Kurva Bézier 3D** (4 titik kontrol) membentuk lengkung huruf-U yang rapi dan menyambung ke engsel telinga.
+  * **Animasi Rahang (Arbitrary Axis)**: Menggunakan rotasi sumbu sembarang 3D miring (dislokasi engsel rahang khas zombie) terhadap titik pivot engsel mandibular.
   * **Otot Bawah Dagu**: *Ellipsoid* penyambung antara dasar rahang dan leher (*submental area*).
 * **Mulut & Bibir**:
   * **Bibir Atas**: *Curved ellipsoid* melengkung ke bawah menonjol dari wajah.
@@ -89,3 +90,21 @@ Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang di
 * **Betis / Kaki Bawah**: *Cylinder* warna kulit hijau pucat zombie.
 * **Sepatu**: *Ellipsoid* memanjang berwarna cokelat tua.
 * **Sol Sepatu**: *Box* tipis memanjang di bagian dasar sepatu berwarna gelap.
+
+---
+
+## III. Transformasi & Animasi (Rubrik Grafika Komputer)
+
+| Transformasi | Bagian | Metode / Formula | Keterangan |
+| :--- | :--- | :--- | :--- |
+| **Translate** | Seluruh Badan (`body`) | `m4.T(0, bob + walkBob, ...)` & Translasi Dunia | Bobbing langkah kaki saat berjalan, translasi langkah sepanjang `ZOMBIE_PATH` dari kuburan ke rumah. |
+| **Rotate (Euler)** | Kepala (`head`) | `pivotRot(headPivot, M(m4.Y(headAngle), m4.Z(headTilt)))` | Kepala menoleh kiri-kanan serta tilt/twitch acak. |
+| | Pinggul & Badan | `pivotRot(waistPivot, M(m4.X(hunch), m4.Z(sway)))` | Postur tubuh membungkuk dan goyang badan (*swaying*). |
+| | Lengan & Kaki | `pivotRot(pivot, m4.X(angle))` | Ayunan langkah kaki dan lengan saat berjalan maupun diam (*idle*). |
+| | Helai Rambut | `pivotRot(pivot, m4.Z(angle))` | Goyangan helai rambut tertiup angin. |
+| **Rotate (Arbitrary Axis)** | **Rahang Bawah (`jaw`)** | **`pivotRot(jawPivot, axisRot(jawAxis, jawAngle))`** | **Rotasi sumbu sembarang 3D miring** ($\vec{u} = [0.93, 0.22, -0.28]$) menggunakan formula Rodrigues terhadap titik pivot mandibular `[0, 1.72, 0.55]`. Menghasilkan efek menganga asimetris/miring khas rahang zombie yang terkilir/dislokasi. |
+| **Scaling** | Mata (`eyeL/R`) | `m4.S(1, blink, 1)` | Mata berkedip asimetris dengan menskalakan tinggi sumbu Y. |
+| | Napas Badan | `m4.S(pulse, pulse, pulse)` | Ekspansi mikro napas zombie secara ritmik. |
+| | Spawn / Muncul | `m4.S(s, s, s)` dengan `Ease.outBack` | Skala membesar saat bangkit dari kuburan (tombol `J` / `G`). |
+| **Hierarchical** | Seluruh Rantai Tubuh | `root → body ─┬─ head ─┬─ jaw, eyeL, eyeR, hair0..9`<br>`               ├─ armL/R_upper → armL/R_lower`<br>`               └─ legL/R_upper → legR_lower` | Transformasi induk diteruskan ke anak (misal: saat kepala menoleh, rahang, mata, dan rambut ikut terbawa). |
+
