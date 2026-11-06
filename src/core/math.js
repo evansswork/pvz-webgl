@@ -256,7 +256,6 @@ export const mul = M4.multiply;
 export const add = V3.add;
 export const cross = V3.cross;
 export const dot = V3.dot;
-export const lerp3 = V3.lerp;
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16) / 255);
 

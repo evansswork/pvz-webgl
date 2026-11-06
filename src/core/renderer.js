@@ -2,13 +2,10 @@
    renderer.js — WebGL murni: shader toon, outline kartun, bayangan planar,
    scene graph (Hierarchical Transformation)
 
-   Dua cara pakai:
-   • Viewer karakter : new Renderer(canvas)  → render(roots, cam) (langit + rumput studio)
-   • Scene gabungan  : new Renderer(gl)      → drawScene(groups, cam)
-                       digambar di atas environment (context WebGL2 yang sama).
-                       Tiap group = { roots, stage, scale }: `stage` menempatkan
-                       ruang karakter ke dunia (T · Ry · S), jadi kode karakter
-                       tetap bekerja di satuan aslinya (tanah = y 0).
+   Pakai: new Renderer(gl) → drawScene(groups, cam), digambar di atas
+   environment (context WebGL2 yang sama). Tiap group = { roots, stage, scale }:
+   `stage` menempatkan ruang karakter ke dunia (T · Ry · S), jadi kode karakter
+   tetap bekerja di satuan aslinya (tanah = y 0).
    ========================================================================= */
 import { V3, M4 } from './math.js';
 
@@ -38,7 +35,7 @@ uniform vec3 uColor, uLightDir, uFillDir, uCamPos, uSkyCol, uGroundCol, uFogCol,
 uniform float uSpec, uShin, uEmissive, uAlpha, uFogNear, uFogFar, uSoft;
 uniform float uFogDen, uExposure, uFill, uShadowA;   // uFogDen > 0 → kabut eksponensial (scene malam)
 uniform int uTone;                                    // 1 = tone mapping ACES (scene malam)
-uniform int uPLn;                                     // jumlah lampu titik (0 di viewer)
+uniform int uPLn;                                     // jumlah lampu titik (maks. 4)
 uniform vec3 uPLpos[4]; uniform vec3 uPLcol[4]; uniform float uPLrad[4];
 vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 float fogF(float d) { return uFogDen > 0.0 ? clamp(1.0 - exp(-d * uFogDen), 0.0, 0.85) : smoothstep(uFogNear, uFogFar, d); }
@@ -84,26 +81,6 @@ void main(){
   float a = uAlpha;
   if (uSoft > 0.5) a *= pow(max(dot(N, V), 0.0), 2.2);   // glow memudar di tepi
   gl_FragColor = vec4(finish(col, fog), a);
-}`;
-
-export const SKY_VS = `attribute vec2 aP; varying vec2 vUv; void main(){ vUv = aP * 0.5 + 0.5; gl_Position = vec4(aP, 0.9999, 1.0); }`;
-export const SKY_FS = `
-precision mediump float; precision mediump int; varying vec2 vUv;
-uniform vec3 uTop, uBot; uniform int uStudio; uniform vec2 uRes; uniform float uHorizon;
-void main(){
-  vec3 col;
-  if (uStudio == 1) {
-    float d = length((vUv - vec2(0.5, 0.52)) * vec2(uRes.x / uRes.y, 1.0));
-    col = mix(vec3(0.33, 0.33, 0.34), vec3(0.07, 0.07, 0.08), smoothstep(0.05, 0.95, d));
-  } else {
-    float t = smoothstep(uHorizon - 0.05, 1.0, vUv.y);
-    col = mix(uBot, uTop, pow(t, 0.8));
-    float glow = exp(-pow(length((vUv - vec2(0.82, 0.86)) * vec2(uRes.x / uRes.y, 1.0)) * 3.2, 2.0));
-    col += vec3(1.0, 0.92, 0.6) * glow * 0.35;
-  }
-  // dithering kecil supaya gradien tidak banding
-  col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
-  gl_FragColor = vec4(col, 1.0);
 }`;
 
 export function compile(gl, vs, fs) {
@@ -190,38 +167,19 @@ export function material(color, o = {}) {
 
 /* ------------------------------- Renderer -------------------------------- */
 export class Renderer {
-  /** @param target canvas (viewer, context WebGL sendiri) atau gl yang sudah ada (scene gabungan) */
-  constructor(target) {
-    const own = !!target.getContext;
-    const gl = own ? target.getContext('webgl', { antialias: true, stencil: true, alpha: false }) : target;
-    if (!gl) throw new Error('WebGL tidak didukung browser ini');
-    if (own) gl.getExtension('OES_element_index_uint');
-    this.gl = gl; this.canvas = own ? target : gl.canvas; this.own = own;
+  /** @param gl context WebGL milik environment (scene gabungan) */
+  constructor(gl) {
+    this.gl = gl;
     this.toon = compile(gl, TOON_VS, TOON_FS);
-    if (own) {
-      this.sky = compile(gl, SKY_VS, SKY_FS);
-      this.quad = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    }
+    // nilai default; scene utama menimpanya lewat toonNightEnv() (lighting.js)
     this.env = {
-      studio: false, lightDir: V3.norm([0.55, 1.0, 0.75]),
-      skyTop: [0.36, 0.67, 0.95], skyBot: [0.86, 0.94, 0.98],
+      lightDir: V3.norm([0.55, 1.0, 0.75]),
       skyCol: [1.0, 0.98, 0.94], groundCol: [0.55, 0.62, 0.42], fogNear: 18, fogFar: 46,
       outline: [0.07, 0.05, 0.04],
-      // dipakai scene malam (viewer memakai nilai default di bawah)
       fillDir: [-0.7, 0.35, -0.8], fill: 0.22, rimCol: [0, 0, 0],
-      fogDen: 0, fogCol: null, tone: 0, exposure: 1, groundY: 0, shadowA: 0.32,
+      fogDen: 0, fogCol: [0.86, 0.94, 0.98], tone: 0, exposure: 1, groundY: 0, shadowA: 0.32,
       lamps: [],                                   // [{ pos, col, rad }] maks. 4
     };
-  }
-
-  resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2), c = this.canvas;
-    const w = Math.round(c.clientWidth * dpr), h = Math.round(c.clientHeight * dpr);
-    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-    this.gl.viewport(0, 0, w, h);
-    return w / h;
   }
 
   /** Proyeksi bayangan planar ke bidang y = groundY searah cahaya utama */
@@ -247,31 +205,10 @@ export class Renderer {
     gl.uniform1i(u.uMode, mode);
     gl.uniform3fv(u.uColor, m.color);
     gl.uniform1f(u.uSpec, m.spec); gl.uniform1f(u.uShin, m.shin);
-    gl.uniform1f(u.uEmissive, m.emissive); gl.uniform1f(u.uAlpha, mode === 2 ? (this.env.studio ? 0.55 : this.env.shadowA) : m.alpha);
+    gl.uniform1f(u.uEmissive, m.emissive); gl.uniform1f(u.uAlpha, mode === 2 ? this.env.shadowA : m.alpha);
     gl.uniform1f(u.uOutline, m.outlineW * item.scale); gl.uniform1f(u.uSoft, m.soft ? 1 : 0);
     this._bindMesh(item.mesh);
     gl.drawElements(gl.TRIANGLES, item.mesh.count, item.mesh.type, 0);
-  }
-
-  /** Viewer: bersihkan layar, gambar langit, lalu karakter */
-  render(roots, cam) {
-    const gl = this.gl, E = this.env;
-    gl.clearColor(0, 0, 0, 1); gl.clearStencil(0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-
-    // ---- langit / latar
-    gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
-    gl.useProgram(this.sky.p);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
-    gl.enableVertexAttribArray(this.sky.a.aP); gl.vertexAttribPointer(this.sky.a.aP, 2, gl.FLOAT, false, 0, 0);
-    gl.uniform3fv(this.sky.u.uTop, E.skyTop); gl.uniform3fv(this.sky.u.uBot, E.skyBot);
-    gl.uniform1i(this.sky.u.uStudio, E.studio ? 1 : 0);
-    gl.uniform2f(this.sky.u.uRes, this.canvas.width, this.canvas.height);
-    gl.uniform1f(this.sky.u.uHorizon, cam.horizon);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.disableVertexAttribArray(this.sky.a.aP);
-
-    this.drawScene([{ roots }], cam);
   }
 
   /** Gambar karakter (scene graph) — groups: [{ roots, stage?, scale? }] */
@@ -298,8 +235,8 @@ export class Renderer {
     gl.uniform3fv(u.uLightDir, E.lightDir); gl.uniform3fv(u.uSunCol, E.sunCol || [1, 1, 1]);
     gl.uniform3fv(u.uFillDir, E.fillDir); gl.uniform1f(u.uFill, E.fill); gl.uniform3fv(u.uCamPos, cam.eye);
     gl.uniform3fv(u.uSkyCol, E.skyCol); gl.uniform3fv(u.uGroundCol, E.groundCol); gl.uniform3fv(u.uRimCol, E.rimCol);
-    gl.uniform3fv(u.uFogCol, E.studio ? [0.1, 0.1, 0.1] : (E.fogCol || E.skyBot));
-    gl.uniform1f(u.uFogNear, E.studio ? 900 : E.fogNear); gl.uniform1f(u.uFogFar, E.studio ? 1000 : E.fogFar);
+    gl.uniform3fv(u.uFogCol, E.fogCol);
+    gl.uniform1f(u.uFogNear, E.fogNear); gl.uniform1f(u.uFogFar, E.fogFar);
     gl.uniform1f(u.uFogDen, E.fogDen); gl.uniform1i(u.uTone, E.tone); gl.uniform1f(u.uExposure, E.exposure);
     gl.uniform3fv(u.uOutlineCol, E.outline);
     const lamps = E.lamps.slice(0, 4);
@@ -312,15 +249,10 @@ export class Renderer {
     gl.enable(gl.CULL_FACE);
 
     const xray = items.filter((i) => i.mat.xray);
-    const opaque = items.filter((i) => i.mat.alpha >= 1 && !i.mat.ground && !i.mat.xray);
-    const ground = items.filter((i) => i.mat.ground);
+    const opaque = items.filter((i) => i.mat.alpha >= 1 && !i.mat.xray);
     const transp = items.filter((i) => i.mat.alpha < 1);
 
-    // 1) tanah
-    gl.cullFace(gl.BACK);
-    for (const it of ground) this._draw(it, 0);
-
-    // 2) bayangan planar (stencil → tiap piksel digelapkan sekali saja)
+    // 1) bayangan planar (stencil → tiap piksel digelapkan sekali saja)
     gl.enable(gl.STENCIL_TEST); gl.stencilFunc(gl.EQUAL, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.INCR);
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.depthMask(false); gl.disable(gl.CULL_FACE);
@@ -329,16 +261,16 @@ export class Renderer {
     gl.disable(gl.POLYGON_OFFSET_FILL); gl.disable(gl.STENCIL_TEST); gl.disable(gl.BLEND);
     gl.depthMask(true); gl.enable(gl.CULL_FACE);
 
-    // 3) objek berwarna
+    // 2) objek berwarna
     gl.cullFace(gl.BACK);
     for (const it of opaque) this._draw(it, 0);
 
-    // 4) outline kartun (inverted hull: muka depan dibuang, hull diperbesar sepanjang normal)
+    // 3) outline kartun (inverted hull: muka depan dibuang, hull diperbesar sepanjang normal)
     gl.cullFace(gl.FRONT);
     for (const it of opaque) if (it.mat.outline) this._draw(it, 1);
     gl.cullFace(gl.BACK);
 
-    // 5) objek transparan (glow matahari)
+    // 4) objek transparan (glow matahari)
     gl.enable(gl.BLEND); gl.depthMask(false);
     for (const it of transp) {
       gl.blendFunc(gl.SRC_ALPHA, it.mat.additive ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
@@ -346,7 +278,7 @@ export class Renderer {
     }
     gl.depthMask(true); gl.disable(gl.BLEND);
 
-    // 6) penanda sumbu rotasi (selalu terlihat, menembus kepala)
+    // 5) penanda sumbu rotasi (selalu terlihat, menembus kepala)
     gl.disable(gl.DEPTH_TEST);
     for (const it of xray) this._draw(it, 0);
     gl.enable(gl.DEPTH_TEST);

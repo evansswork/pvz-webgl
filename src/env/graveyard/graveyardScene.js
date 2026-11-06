@@ -5,8 +5,7 @@
  */
 
 import { OBJEK_GRAVEYARD } from "./data.js";
-import { M4 } from "../../core/math.js";
-import { KINDS, hx, UM, STONE_RANGE } from "../../core/geometry.js";
+import { UM, STONE_RANGE } from "../../core/geometry.js";
 import { GRAVESTONE_RANGE } from "./gravestone.js";
 import { createEnvironment } from "./environment.js";
 
@@ -34,7 +33,6 @@ precision highp float;
 in vec3 vP;
 uniform vec3 uCol, uCam;
 uniform float uEx, uA;
-uniform int uMode;
 uniform int uTerrain;
 
 // --- Fungsi Noise Prosedural Simpel (Tanpa File Gambar/Tekstur Luar) ---
@@ -114,7 +112,7 @@ void main() {
 
   // Bump normal tipis khusus objek batu agar permukaan balok tampak bertekstur pahatan
   bool isGrass = (uTerrain == 1 || uTerrain == 9);
-  if (uMode == 0 && !isGrass) {
+  if (!isGrass) {
     vec3 bump = vec3(
       n3(vP + vec3(0.35, 0.0, 0.0), 1.2) - n3(vP - vec3(0.35, 0.0, 0.0), 1.2),
       n3(vP + vec3(0.0, 0.35, 0.0), 1.2) - n3(vP - vec3(0.0, 0.35, 0.0), 1.2),
@@ -136,29 +134,24 @@ void main() {
   float fog = smoothstep(1000.0, 4600.0, distCam);
   vec3 fogCol = vec3(0.024, 0.038, 0.068);
 
-  if (uMode == 0) {
-    if (isGrass) {
-      vec3 grass = grassAlbedo(vP, n);
-      vec3 litGrass = pow(grass, vec3(0.45)) * l * uEx;
-      fC = vec4(mix(litGrass, fogCol * uEx, fog), uA);
-      return;
-    }
-
-    // Objek batu kuburan: warna batu berlumut + pantulan sinar bulan (specular & rim)
-    vec3 stone = stoneAlbedo(vP, n, uCol);
-    vec3 H = normalize(L + v);
-    float spec = pow(max(dot(n, H), 0.0), 24.0) * 0.16;
-    float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.12 * max(n.y + 0.3, 0.0);
-
-    vec3 gc = (pow(stone, vec3(0.45)) * l + vec3(0.75, 0.85, 1.0) * (spec + rim)) * vec3(0.86, 0.93, 1.06) * uEx;
-    gc = mix(gc, fogCol * uEx, fog);
-    // Tone mapping ACES agar kontras cahaya malam lembut dan realistis
-    gc = clamp((gc * (2.51 * gc + 0.03)) / (gc * (2.43 * gc + 0.59) + 0.14), 0.0, 1.0);
-    fC = vec4(gc, uA);
-  } else {
-    float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-    fC = vec4(uCol * l * uEx + vec3(rim * 0.3), uA);
+  if (isGrass) {
+    vec3 grass = grassAlbedo(vP, n);
+    vec3 litGrass = pow(grass, vec3(0.45)) * l * uEx;
+    fC = vec4(mix(litGrass, fogCol * uEx, fog), uA);
+    return;
   }
+
+  // Objek batu kuburan: warna batu berlumut + pantulan sinar bulan (specular & rim)
+  vec3 stone = stoneAlbedo(vP, n, uCol);
+  vec3 H = normalize(L + v);
+  float spec = pow(max(dot(n, H), 0.0), 24.0) * 0.16;
+  float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.12 * max(n.y + 0.3, 0.0);
+
+  vec3 gc = (pow(stone, vec3(0.45)) * l + vec3(0.75, 0.85, 1.0) * (spec + rim)) * vec3(0.86, 0.93, 1.06) * uEx;
+  gc = mix(gc, fogCol * uEx, fog);
+  // Tone mapping ACES agar kontras cahaya malam lembut dan realistis
+  gc = clamp((gc * (2.51 * gc + 0.03)) / (gc * (2.43 * gc + 0.59) + 0.14), 0.0, 1.0);
+  fC = vec4(gc, uA);
 }`;
 
 // =====================================================================
@@ -183,7 +176,7 @@ gl.linkProgram(pg);
 gl.useProgram(pg);
 
 const U = {};
-["uVP", "uM", "uR", "uC", "uH", "uCol", "uCam", "uEx", "uA", "uMode", "uTerrain"].forEach(
+["uVP", "uM", "uR", "uC", "uH", "uCol", "uCam", "uEx", "uA", "uTerrain"].forEach(
   (n) => (U[n] = gl.getUniformLocation(pg, n)),
 );
 const ID4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -208,16 +201,13 @@ export function createGraveyardScene() {
 
   const env = createEnvironment(gl, U, ID4);
 
-  function drawShapes(a, only, onlyComplex, sel, customTransforms) {
+  function drawShapes() {
     gl.bindVertexArray(pv);
-    gl.uniform1i(U.uMode, onlyComplex ? 0 : 1);
     gl.uniformMatrix4fv(U.uR, false, ID4);
 
     OBJEK_GRAVEYARD.forEach((ob, i) => {
-      if (only !== undefined && i !== only) return;
-
-      if (onlyComplex && ob.nama === "Plane") {
-        env.drawTerrain(a);
+      if (ob.nama === "Plane") {
+        env.drawTerrain(1);
         gl.bindVertexArray(pv);
         return;
       }
@@ -230,13 +220,8 @@ export function createGraveyardScene() {
       else if (ob.jenis === "plane") k = 5;
 
       const kProxy = k === 5 ? (ob.nama.startsWith("Cube") ? 4 : 0) : k;
-      const isStone = onlyComplex && k === 5 && ob.nama.startsWith("Cube");
-
-      const custom = !onlyComplex
-        ? null
-        : GRAVESTONE_RANGE.has(i)
-          ? [GRAVESTONE_RANGE.get(i), 3]
-          : null;
+      const isStone = k === 5 && ob.nama.startsWith("Cube");
+      const custom = GRAVESTONE_RANGE.has(i) ? [GRAVESTONE_RANGE.get(i), 3] : null;
 
       const r = custom
         ? UM.ranges[custom[0]]
@@ -244,25 +229,11 @@ export function createGraveyardScene() {
           ? UM.ranges[STONE_RANGE]
           : UM.ranges[kProxy];
 
-      let m = ob.matrix;
-      if (customTransforms && customTransforms[ob.nama]) {
-        m = M4.mul(m, customTransforms[ob.nama]);
-      }
-
-      gl.uniformMatrix4fv(U.uM, false, m);
+      gl.uniformMatrix4fv(U.uM, false, ob.matrix);
       gl.uniform3fv(U.uC, ob.pusat);
       gl.uniform3fv(U.uH, ob.nama === "Plane" ? [1, 1, 0.004] : ob.ukuran_proksi);
-      gl.uniform3fv(
-        U.uCol,
-        i === sel
-          ? [1, 1, 0.2]
-          : onlyComplex
-            ? (k === 5 && ob.nama === "Plane")
-              ? [0.015, 0.025, 0.01]
-              : ob.warna
-            : hx(KINDS[k][1]),
-      );
-      gl.uniform1f(U.uA, i === sel ? Math.max(a, 0.8) : a);
+      gl.uniform3fv(U.uCol, ob.warna);
+      gl.uniform1f(U.uA, 1);
 
       if (custom) gl.uniform1i(U.uTerrain, custom[1]);
       gl.drawArrays(gl.TRIANGLES, r[0], r[1]);
@@ -273,12 +244,7 @@ export function createGraveyardScene() {
   }
 
   function render(VP, eye, options = {}) {
-    const {
-      mode = 0,
-      exposure = 1.4,
-      sel = -1,
-      customTransforms = null,
-    } = options;
+    const { exposure = 1.4 } = options;
 
     gl.useProgram(pg);
     gl.uniformMatrix4fv(U.uVP, false, VP);
@@ -290,32 +256,10 @@ export function createGraveyardScene() {
     env.renderSky(eye);
     env.renderLandscape();
 
-    if (mode === 0) {
-      drawShapes(1, undefined, true, sel, customTransforms);
-      if (sel >= 0) {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.depthMask(false);
-        drawShapes(0.0, sel, false, sel, customTransforms);
-        gl.depthMask(true);
-      }
-    } else if (mode === 1) {
-      drawShapes(1, undefined, false, sel, customTransforms);
-    } else {
-      drawShapes(1, undefined, true, sel, customTransforms);
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.depthMask(false);
-      drawShapes(0.42, undefined, false, sel, customTransforms);
-      gl.depthMask(true);
-    }
+    drawShapes();
   }
 
-  return {
-    render,
-    getTerrainHeight,
-    objects: OBJEK_GRAVEYARD,
-  };
+  return { render, getTerrainHeight };
 }
 
-export { cv, gl, pg, U, ID4 };
+export { cv, gl };

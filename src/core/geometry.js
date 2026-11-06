@@ -197,78 +197,6 @@ export function box(w, h, d) {
   return orient(g);
 }
 
-/* ===================== MESH SEGITIGA BERTEBAL (jas, dasi, kerah) ==============
-   `grid[i][j]` = titik permukaan luar (rows × cols), `nrm` = normal luar.
-   Lapis dalam = titik − normal·tebal; keempat tepi ditutup dinding sehingga
-   menjadi benda pejal (outline kartun bekerja rapi).                           */
-export function thickSurface(grid, nrm, thick, keep = null) {
-  const g = newGeo(), R = grid.length, C = grid[0].length;
-  const vid = (l, i, j) => l * R * C + i * C + j;
-  const edgeN = (i, j) => {
-    const c = grid[(R - 1) >> 1][(C - 1) >> 1];
-    let o = V3.sub(grid[i][j], c); o = V3.sub(o, V3.scale(nrm[i][j], V3.dot(o, nrm[i][j])));
-    return V3.norm(o);
-  };
-  for (let l = 0; l < 2; l++) {
-    for (let i = 0; i < R; i++) for (let j = 0; j < C; j++) {
-      const n = nrm[i][j];
-      let vn = l === 0 ? n : V3.scale(n, -1);
-      if (i === 0 || j === 0 || i === R - 1 || j === C - 1) vn = V3.norm(V3.add(V3.scale(vn, 0.5), edgeN(i, j)));
-      pushV(g, l === 0 ? grid[i][j] : V3.sub(grid[i][j], V3.scale(n, thick)), vn);
-    }
-    for (let i = 0; i < R - 1; i++) for (let j = 0; j < C - 1; j++) {
-      if (keep && !keep(i, j)) continue;
-      const a = vid(l, i, j), b = a + 1, d = a + C, e = d + 1;
-      g.idx.push(a, d, b, b, d, e);
-    }
-  }
-  const wall = (pairs) => { for (let k = 0; k < pairs.length - 1; k++) {
-    const [i0, j0] = pairs[k], [i1, j1] = pairs[k + 1];
-    const a = vid(0, i0, j0), b = vid(0, i1, j1), c = vid(1, i0, j0), d = vid(1, i1, j1);
-    g.idx.push(a, b, c, b, d, c);
-  } };
-  if (!keep) {
-    wall([...Array(R).keys()].map((i) => [i, 0])); wall([...Array(R).keys()].map((i) => [i, C - 1]));
-    wall([...Array(C).keys()].map((j) => [0, j])); wall([...Array(C).keys()].map((j) => [R - 1, j]));
-  }
-  return orient(g);
-}
-
-/** Normal permukaan grid via beda hingga, diarahkan sesuai `outward(p)` */
-export function gridNormals(grid, outward) {
-  const R = grid.length, C = grid[0].length;
-  return grid.map((row, i) => row.map((p, j) => {
-    const dv = V3.sub(grid[Math.min(i + 1, R - 1)][j], grid[Math.max(i - 1, 0)][j]);
-    const du = V3.sub(grid[i][Math.min(j + 1, C - 1)], grid[i][Math.max(j - 1, 0)]);
-    let n = V3.norm(V3.cross(du, dv));
-    if (V3.len(n) === 0) n = outward(p);
-    if (V3.dot(n, outward(p)) < 0) n = V3.scale(n, -1);
-    return n;
-  }));
-}
-
-/* ====== CONE TERPOTONG DENGAN TEPI SOBEK (celana robek) ======
-   Sama seperti coneFrustum (sepanjang −Y dari 0 ke −h) tetapi tepi bawah
-   bergerigi: segitiga-segitiga tak beraturan. Dinding luar + dalam.           */
-export function raggedFrustum(r0, r1, h, jag, seed = 3, seg = 30, rings = 5) {
-  let s = seed; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-  const tooth = []; for (let j = 0; j <= seg; j++) tooth.push(j % 2 ? jag * (0.35 + rnd()) : jag * 0.1 * rnd());
-  tooth[seg] = tooth[0];
-  const l = Math.hypot(h, r1 - r0);
-  const grid = [], nr = [];
-  for (let i = 0; i <= rings; i++) {
-    const row = [], nrow = [];
-    for (let j = 0; j <= seg; j++) {
-      const th = (2 * Math.PI * j) / seg, x = Math.sin(th), z = Math.cos(th);
-      const hh = h + (i / rings) * tooth[j], y = -(hh * i) / rings, t = Math.min(1, -y / h);
-      const r = r0 + (r1 - r0) * t;
-      row.push([r * x, y, r * z]); nrow.push([x * h / l, -(r1 - r0) / l, z * h / l]);
-    }
-    grid.push(row); nr.push(nrow);
-  }
-  return thickSurface(grid, nr.map((r) => r.map(V3.norm)), 0.012);
-}
-
 /* ================================ KURVA BÉZIER ================================
    B(t) = (1−t)³P0 + 3(1−t)²t P1 + 3(1−t)t² P2 + t³ P3                           */
 export const Bezier = {
@@ -922,15 +850,6 @@ function ragged(r, h, teeth = 9) {
 
 
 // ============ BENTUK DASAR (unit mesh) ============
-const KINDS = [
-  ["Balok (kotak)", "#8c8c8c"],
-  ["Silinder tipis", "#36261e"],
-  ["Kerucut runcing", "#1b331b"],
-  ["Torus (cincin / busur)", "#707070"],
-  ["Ellipsoid (mesh bulat)", "#a0a0a0"],
-  ["Plane / lempeng pipih", "#1e2e17"],
-  ["Proksi organik (Box/Gabungan)", "#293623"],
-];
 const hx = (h) =>
   [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16) / 255);
 
@@ -1028,7 +947,6 @@ const STONE_RANGE = 0;
 
 
 export {
-  KINDS,
   hx,
   UM,
   STONE_RANGE,

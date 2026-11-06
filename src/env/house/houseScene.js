@@ -23,8 +23,6 @@ export function createHouseScene(gl) {
   const N = [];
   const C = [];
   const TI = [];
-  const WI = [];
-  const parts = [];
   let vc = 0;
 
 
@@ -49,14 +47,6 @@ export function createHouseScene(gl) {
     ];
   }
 
-  function transformNormal(localN) {
-    return [
-      -localN[2],
-      localN[1],
-      localN[0],
-    ];
-  }
-
   function addPart(name, type, color, faces) {
     const col = hex(color);
     const mn = [1e9, 1e9, 1e9];
@@ -75,17 +65,6 @@ export function createHouseScene(gl) {
     );
 
     const c = [0, 1, 2].map((i) => (mn[i] + mx[i]) / 2);
-    const p = {
-      name,
-      type,
-      v0: vc,
-      t0: TI.length,
-      w0: WI.length,
-      c,
-      size: [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]],
-      col,
-    };
-
     worldFaces.forEach((f) => {
       let n = cross(sub(f[1], f[0]), sub(f[2], f[0]));
       const l = Math.hypot(n[0], n[1], n[2]) || 1;
@@ -105,14 +84,8 @@ export function createHouseScene(gl) {
 
       for (let i = 1; i < f.length - 1; i++) {
         TI.push(b, b + i, b + i + 1);
-        WI.push(b, b + i, b + i, b + i + 1, b + i + 1, b);
       }
     });
-
-    p.vn = vc - p.v0;
-    p.tn = TI.length - p.t0;
-    p.wn = WI.length - p.w0;
-    parts.push(p);
   }
 
   // --- Primitif Geometri Rumah (Koordinat Lokal) ---
@@ -242,20 +215,9 @@ export function createHouseScene(gl) {
   in vec3 vC;
   uniform vec3 uCam;
   uniform float uExposure;
-  uniform int uMode; // 0 = Shaded malam, 1 = Flat Color, 2 = Wireframe
-  uniform vec3 uWireCol;
   out vec4 fragColor;
   ${NIGHT_GLSL}
   void main() {
-    if (uMode == 2) {
-      fragColor = vec4(uWireCol, 1.0);
-      return;
-    }
-    if (uMode == 1) {
-      fragColor = vec4(vC, 1.0);
-      return;
-    }
-
     vec3 n = normalize(vN);
     vec3 viewDir = normalize(uCam - vP);
 
@@ -305,8 +267,6 @@ export function createHouseScene(gl) {
   const uVP = gl.getUniformLocation(program, "uVP");
   const uCam = gl.getUniformLocation(program, "uCam");
   const uExposure = gl.getUniformLocation(program, "uExposure");
-  const uMode = gl.getUniformLocation(program, "uMode");
-  const uWireCol = gl.getUniformLocation(program, "uWireCol");
 
   // VAO & VBOs
   const vao = gl.createVertexArray();
@@ -334,18 +294,13 @@ export function createHouseScene(gl) {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triIbo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(TI), gl.STATIC_DRAW);
 
-  // Wireframe IBO terpisah
-  const wireIbo = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIbo);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(WI), gl.STATIC_DRAW);
-
   gl.bindVertexArray(null);
 
   /**
    * Render Rumah dan Pekarangan
    */
   function render(VP, camEye, options = {}) {
-    const { mode = 0, exposure = 1.4 } = options;
+    const { exposure = 1.4 } = options;
 
     gl.useProgram(program);
     gl.uniformMatrix4fv(uVP, false, VP);
@@ -354,26 +309,11 @@ export function createHouseScene(gl) {
 
     gl.bindVertexArray(vao);
 
-    if (mode === 2) {
-      // Wireframe murni
-      gl.uniform1i(uMode, 2);
-      gl.uniform3fv(uWireCol, [0.35, 0.95, 0.55]);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIbo);
-      gl.drawElements(gl.LINES, WI.length, gl.UNSIGNED_SHORT, 0);
-    } else {
-      // Shaded (mode 0) atau Flat (mode 1)
-      gl.uniform1i(uMode, mode === 1 ? 1 : 0);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triIbo);
-      gl.drawElements(gl.TRIANGLES, TI.length, gl.UNSIGNED_SHORT, 0);
-    }
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triIbo);
+    gl.drawElements(gl.TRIANGLES, TI.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindVertexArray(null);
   }
 
-  return {
-    render,
-    parts,
-    triangleCount: TI.length / 3,
-    vertexCount: P.length / 3,
-  };
+  return { render };
 }

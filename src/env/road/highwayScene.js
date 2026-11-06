@@ -27,7 +27,6 @@ export function createHighwayScene(gl) {
   const N = [];
   const C = [];
   const TI = [];
-  const WI = [];
   let vc = 0;
 
 
@@ -48,7 +47,6 @@ export function createHighwayScene(gl) {
 
       for (let i = 1; i < f.length - 1; i++) {
         TI.push(b, b + i, b + i + 1);
-        WI.push(b, b + i, b + i, b + i + 1, b + i + 1, b);
       }
     });
   }
@@ -63,21 +61,6 @@ export function createHighwayScene(gl) {
       [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0],
     ];
     addFaces(col, F.map((f) => f.map((i) => v[i])));
-  }
-
-  function cyl(col, cx, y0, cz, r, h, s = 12) {
-    const top = [], bot = [], F = [];
-    for (let i = 0; i < s; i++) {
-      const a = (i / s) * Math.PI * 2, x = cx + r * Math.cos(a), z = cz + r * Math.sin(a);
-      top.push([x, y0 + h, z]);
-      bot.push([x, y0, z]);
-    }
-    for (let i = 0; i < s; i++) {
-      const j = (i + 1) % s;
-      F.push([bot[i], bot[j], top[j], top[i]]);
-    }
-    F.push(top, bot);
-    addFaces(col, F);
   }
 
   // ---------------------------------------------------------------------------
@@ -165,23 +148,12 @@ export function createHighwayScene(gl) {
   in vec3 vC;
   uniform vec3 uCam;
   uniform float uExposure;
-  uniform int uMode; // 0 = Shaded, 1 = Flat, 2 = Wireframe
-  uniform vec3 uWireCol;
   out vec4 fragColor;
 
   float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
   ${NIGHT_GLSL}
 
   void main() {
-    if (uMode == 2) {
-      fragColor = vec4(uWireCol, 1.0);
-      return;
-    }
-    if (uMode == 1) {
-      fragColor = vec4(vC, 1.0);
-      return;
-    }
-
     vec3 n = normalize(vN);
 
     // ---- Pencahayaan malam (lihat src/lighting.js) ----
@@ -228,8 +200,6 @@ export function createHighwayScene(gl) {
   const uVP = gl.getUniformLocation(program, "uVP");
   const uCam = gl.getUniformLocation(program, "uCam");
   const uExposure = gl.getUniformLocation(program, "uExposure");
-  const uMode = gl.getUniformLocation(program, "uMode");
-  const uWireCol = gl.getUniformLocation(program, "uWireCol");
 
   // VAO & Buffers
   const vao = gl.createVertexArray();
@@ -257,14 +227,10 @@ export function createHighwayScene(gl) {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triIbo);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(TI), gl.STATIC_DRAW);
 
-  const wireIbo = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIbo);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(WI), gl.STATIC_DRAW);
-
   gl.bindVertexArray(null);
 
   function render(VP, camEye, options = {}) {
-    const { mode = 0, exposure = 1.4 } = options;
+    const { exposure = 1.4 } = options;
 
     gl.useProgram(program);
     gl.uniformMatrix4fv(uVP, false, VP);
@@ -273,23 +239,11 @@ export function createHighwayScene(gl) {
 
     gl.bindVertexArray(vao);
 
-    if (mode === 2) {
-      gl.uniform1i(uMode, 2);
-      gl.uniform3fv(uWireCol, [0.95, 0.85, 0.35]);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wireIbo);
-      gl.drawElements(gl.LINES, WI.length, gl.UNSIGNED_INT, 0);
-    } else {
-      gl.uniform1i(uMode, mode === 1 ? 1 : 0);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triIbo);
-      gl.drawElements(gl.TRIANGLES, TI.length, gl.UNSIGNED_INT, 0);
-    }
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triIbo);
+    gl.drawElements(gl.TRIANGLES, TI.length, gl.UNSIGNED_INT, 0);
 
     gl.bindVertexArray(null);
   }
 
-  return {
-    render,
-    triangleCount: TI.length / 3,
-    vertexCount: P.length / 3,
-  };
+  return { render };
 }

@@ -17,11 +17,9 @@ export function placeCharacter(gl, spec, { pos, yaw = 0, scale = 1, extra = {} }
   const stage = M4.chain(M4.translation(...pos), M4.rotationY(yaw), M4.scaling(scale, scale, scale));
   const toWorld = (p) => M4.transformPoint(stage, p);
   const ch = spec.build({ gl, fx, toWorld, ...(typeof extra === "function" ? extra(toWorld) : extra) });
-  // buat scale tanaman ketika pertama kali spawn
-  // if (spec.onStart) spec.onStart(ch);
   const toLocal = M4.invert(stage);
 
-  // penanda sumbu rotasi (tombol X) — sama seperti di viewer
+  // penanda sumbu rotasi (tombol X)
   const axisMat = material([1.0, 0.33, 0.22], { emissive: 0.9, outline: false, shadow: false, xray: true });
   const rod = new Node("axisRod", new Mesh(gl, cylinder(0.018, 1, 10, 1)), axisMat);
   const tip = new Node("axisTip", new Mesh(gl, cone(0.055, 0.16, 12)), axisMat);

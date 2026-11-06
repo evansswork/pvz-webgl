@@ -13,6 +13,7 @@
    Peashooter   : 3 Tembak (translate) · 4 Menoleh kiri-kanan (rotate)
                   otomatis: daun kepala mengepak (arbitrary axis), mata melotot & kedip (scaling)
    Zombie       : J mulai ulang perjalanan dari kuburan
+   G            : tanaman tumbuh ulang + zombie mulai ulang (scale-up)
    Lainnya      : X tampilkan sumbu arbitrary axis
    ========================================================================= */
 
@@ -34,8 +35,8 @@ const highway = createHighwayScene(gl);
 const house = createHouseScene(gl);
 
 /* ---------------- 2. Karakter di halaman rumah ----------------
-   Satu petak rumput = 71.44 satuan dunia. Lompatan Hop karakter = 2 satuan
-   lokal, jadi skala = TILE / 2 → satu Hop tepat pindah satu jalur rumput.   */
+   Satu petak rumput = 71.44 satuan dunia, skala karakter = TILE / 2
+   (2 satuan lokal = satu jalur rumput).                                      */
 const SCALE = TILE / 2;
 const toon = new Renderer(gl);
 Object.assign(toon.env, toonNightEnv());
@@ -170,8 +171,8 @@ function render(dt) {
   gl.clearStencil(0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
-  const opts = { mode: 0, exposure: NIGHT.exposure };
-  graveyard.render(VP, eye, { ...opts, sel: -1 });
+  const opts = { exposure: NIGHT.exposure };
+  graveyard.render(VP, eye, opts);
   highway.render(VP, eye, opts);
   house.render(VP, eye, opts);
 

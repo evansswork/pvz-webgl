@@ -24,7 +24,7 @@ Lengkapi bagian **belum diisi** sebelum dikumpulkan. Pembagian karakter di tabel
 
 ## Menjalankan project
 
-Kebutuhan: Python 3 untuk server lokal dan browser yang mendukung **WebGL 2** untuk scene gabungan. Project tidak membutuhkan instalasi npm atau proses build. Viewer tanaman dan halaman Zombie membuat konteks WebGL sendiri.
+Kebutuhan: Python 3 untuk server lokal dan browser yang mendukung **WebGL 2** untuk scene gabungan. Project tidak membutuhkan instalasi npm atau proses build.
 
 Untuk mengambil project dari GitHub:
 
@@ -39,12 +39,7 @@ Dari folder project yang berisi `index.html`, jalankan:
 python3 -m http.server 8000
 ```
 
-| Halaman | Alamat |
-|---|---|
-| Scene gabungan, tiga karakter dan environment | http://localhost:8000/ |
-| Viewer Sunflower | http://localhost:8000/viewer.html?c=sunflower |
-| Viewer Peashooter | http://localhost:8000/viewer.html?c=peashooter |
-| Viewer Zombie | http://localhost:8000/src/characters/zombie/zombie.html |
+Lalu buka http://localhost:8000/ untuk scene gabungan: tiga karakter dalam satu environment. Layar hanya menampilkan judul di pojok kiri atas agar bersih untuk perekaman video.
 
 File menggunakan ES modules, sehingga perlu dibuka melalui server HTTP. Jika halaman tidak tampil, periksa Console browser, dukungan WebGL, dan folder tempat server dijalankan. Hentikan server dengan `Ctrl+C`. Font judul scene utama dimuat dari Google Fonts dan memiliki font pengganti jika koneksi tidak tersedia.
 
@@ -55,8 +50,6 @@ Pada malam hari, Sunflower dan Peashooter berjaga di halaman rumah. Zombie muncu
 Perjalanan Zombie berjalan otomatis dan dapat diulang dengan `J`. Zombie berhenti di depan Peashooter. Kacang pecah menjadi percikan ketika memasuki pendekatan volume badan Zombie. Interaksi ini merupakan demonstrasi animasi; kode tidak menerapkan sistem HP, kemenangan, atau kekalahan.
 
 ## Kontrol
-
-### Scene gabungan
 
 | Input | Fungsi |
 |---|---|
@@ -74,15 +67,10 @@ Perjalanan Zombie berjalan otomatis dan dapat diulang dengan `J`. Zombie berhent
 | `3` | Peashooter menembak; kepala bergerak dan kacang melesat |
 | `4` | Kepala Peashooter menoleh kiri-kanan |
 | `J` | Mengulang perjalanan Zombie dari kuburan |
+| `G` | Tanaman tumbuh ulang dan Zombie muncul ulang dengan scale-up |
 | `X` | Menampilkan/menyembunyikan penanda sumbu rotasi daun tanaman |
 
 Scaling mata dan gerakan daun tanaman berjalan otomatis. Mendekatlah agar gerak kecil ini terlihat. Penanda `X` membantu menunjukkan posisi dan arah sumbu daun.
-
-### Viewer karakter
-
-Pada **viewer tanaman**, `1` memicu aksi utama, `2` memutar kepala, `G` menumbuhkan ulang karakter, `T` memainkan trailer karakter, `X` mengubah tampilan penanda sumbu, `B` mengganti latar studio, `H` menyembunyikan HUD, dan `R` mengembalikan kamera. Drag untuk orbit dan scroll untuk zoom. Pada viewer Peashooter, tombol tembak adalah `1`; pada scene gabungan tombolnya `3`.
-
-Pada **viewer Zombie**, drag untuk orbit dan scroll untuk zoom. `E` memisahkan/menggabungkan bagian, `C` mengganti mode warna, `A` mengaktifkan/menonaktifkan animasi, dan `S` mengaktifkan/menonaktifkan bayangan.
 
 ## Pemetaan rubrik penilaian
 
@@ -93,11 +81,11 @@ Rubrik pada lembar penilaian memuat sepuluh komponen, masing-masing berbobot 10,
 | 3D Curve, harus pada karakter | 10 | Daun dan tulang daun tanaman menggunakan Bézier; batang Peashooter berupa tube Bézier 3D; rambut dan rahang Zombie mengikuti Bézier. [Geometri tanaman](src/core/geometry.js), [model Peashooter](src/characters/peashooter/model.js), [model Zombie](src/characters/zombie/zombieScene.js). | Ambil detail batang, daun, rambut, dan rahang dari samping serta depan. |
 | Object 1 | 10 | Ellipsoid untuk wajah Sunflower, kepala Peashooter, serta kepala dan sendi Zombie. [Sunflower](src/characters/sunflower/model.js), [Peashooter](src/characters/peashooter/model.js), [Zombie](src/characters/zombie/zombieScene.js). | Tunjukkan volume kepala dari beberapa sudut. |
 | Object 2 | 10 | Cylinder pada batang Sunflower, penghubung batang–kepala Peashooter, serta leher, betis, dan ruas jari Zombie. Sumber model sama seperti baris Object 1. | Perlihatkan batang, penghubung kepala, dan anggota tubuh Zombie. |
-| Object 3, wajib quadric selain ellipsoid dan cylinder | 10 | **Elliptic paraboloid** pada kelopak Sunflower; **cone terpotong** pada moncong Peashooter dan lengan jas Zombie. [Geometri tanaman](src/core/geometry.js), [geometri Zombie](src/characters/zombie/geometry.js). | Sorot kelopak dan moncong dari samping, serta bentuk lengan jas. |
+| Object 3, wajib quadric selain ellipsoid dan cylinder | 10 | **Elliptic paraboloid** pada kelopak Sunflower; **cone terpotong** pada moncong Peashooter dan lengan jas Zombie. [Geometri tanaman](src/core/geometry.js), [geometri bersama](src/core/geometry.js). | Sorot kelopak dan moncong dari samping, serta bentuk lengan jas. |
 | Aesthetic: environment dan objek smooth saat transformasi | 10 | Kuburan, jalan, rumah, pencahayaan malam, toon shading tanaman, outline, bayangan planar tanaman, easing animasi, dan kamera dengan damping. [Environment](src/env/), [lighting](src/lighting.js), [renderer](src/core/renderer.js), [kamera](src/drone.js). | Rekam panorama dan transisi gerakan karakter/kamera. Kualitas visual dinilai dari hasil render. |
 | Translate | 10 | Wajah Sunflower dan Sun berpindah; kepala Peashooter dan peluru bergeser; Zombie berjalan di lintasan. [Animasi Sunflower](src/characters/sunflower/animation.js), [Peashooter](src/characters/peashooter/index.js), [scene utama](src/main.js). | Tekan `1`, `3`, lalu `J` di scene utama. |
 | Rotate | 10 | Rotasi Z pada leher Sunflower, rotasi Y pada leher Peashooter, rotasi sendi dan arah hadap Zombie. [Animasi Sunflower](src/characters/sunflower/animation.js), [animasi Peashooter](src/characters/peashooter/animation.js), [Zombie](src/characters/zombie/zombieScene.js). | Tekan `2`, `4`, dan rekam gerakan Zombie. |
-| Scaling | 10 | Mata Sunflower menyusut saat berkedip; mata Peashooter membesar lalu berkedip; badan Zombie berdenyut dan matanya berkedip. Sumber: kedua file animasi tanaman dan `zombieScene.js`. | Rekam detail mata beberapa detik; `G` di viewer tanaman juga menunjukkan pertumbuhan. |
+| Scaling | 10 | Mata Sunflower menyusut saat berkedip; mata Peashooter membesar lalu berkedip; badan Zombie berdenyut dan matanya berkedip. Sumber: kedua file animasi tanaman dan `zombieScene.js`. | Rekam detail mata beberapa detik; `G` menunjukkan pertumbuhan tanaman dan scale-up Zombie. |
 | Rotate Arbitrary Axis | 10 | Daun Sunflower dan daun belakang kepala Peashooter berputar terhadap engsel miring melalui `M4.rotateArbitraryAxis`. [Matematika](src/core/math.js), kedua file animasi tanaman. | Tekan `X` dan sorot daun saat bergerak otomatis. Catatan khusus Zombie dijelaskan di bawah. |
 | Hierarchical Transformation | 10 | Scene graph tanaman menggunakan `world = parent.world × local`; Zombie memakai hierarki `BoneNode`. [Node tanaman](src/core/renderer.js), [BoneNode Zombie](src/characters/zombie/ZombieNode.js), [penempatan karakter](src/cast.js). | Putar kepala tanaman: mata, mulut, kelopak/moncong ikut bergerak. Rekam bahu–siku dan pinggul–lutut Zombie. |
 | **Total bobot** | **100** | | |
@@ -144,7 +132,7 @@ Saat `3` ditekan di scene utama, kepala melakukan ancang-ancang dan recoil, lalu
 
 ### Zombie
 
-Implementasi gabungan: [zombieScene.js](src/characters/zombie/zombieScene.js), [geometri](src/characters/zombie/geometry.js), [hierarki tulang](src/characters/zombie/ZombieNode.js). Viewer mandiri menggunakan [main.js Zombie](src/characters/zombie/main.js).
+Implementasi: [zombieScene.js](src/characters/zombie/zombieScene.js), [geometri](src/core/geometry.js), [hierarki tulang](src/characters/zombie/ZombieNode.js).
 
 | Bagian | Bentuk/metode |
 |---|---|
@@ -159,7 +147,7 @@ Scene utama menerapkan matriks `T(posisi) × Ry(arah hadap) × S(55)` untuk memb
 
 **Catatan Rotate Arbitrary Axis pada Zombie:** fungsi `axisRot` menerima sumbu umum, tetapi animasi rahang dalam `zombieScene.js` saat ini memasukkan `jawAxis = [1, 0, 0]`. Gerak rahang tersebut merupakan rotasi terhadap garis melalui pivot yang sejajar X. Bukti animasi dengan sumbu miring pada project ini berasal dari daun Sunflower dan Peashooter. Jika kriteria sumbu miring diwajibkan untuk setiap karakter, animasi Zombie perlu disesuaikan dan didemonstrasikan sebelum diklaim memenuhi bagian tersebut.
 
-Dokumen tambahan: [daftar bentuk Zombie](src/characters/zombie/daftar_bentuk.md) dan [struktur modul asal](src/characters/zombie/struktur_file.md). Keduanya masih memuat beberapa path dari project asal; tautan pada README ini mengikuti struktur project sekarang.
+Dokumen tambahan: [daftar bentuk Zombie](src/characters/zombie/daftar_bentuk.md).
 
 ## Penjelasan transformasi
 
@@ -181,7 +169,7 @@ Matriks paling kanan diterapkan terlebih dahulu pada vektor kolom. Translasi men
 M = T(P) × Rx(−α) × Ry(−β) × Rz(θ) × Ry(β) × Rx(α) × T(−P)
 ```
 
-Objek digeser agar garis sumbu melewati origin, sumbu disejajarkan dengan Z, rotasi dilakukan, kemudian penyelarasan dan pergeseran dikembalikan. Pada daun Sunflower, arah engsel berasal dari cross product arah atas dengan arah daun, ditambah komponen ke atas sehingga sumbunya miring. Peashooter menghitung engsel dari arah daun belakang kepala dan normal kepala.
+Objek digeser agar garis sumbu melewati origin, sumbu disejajarkan dengan Z, rotasi dilakukan, kemudian penyelarasan dan pergeseran dikembalikan. Pada daun Sunflower, arah engsel berasal dari cross product arah atas dengan arah daun, ditambah komponen ke atas sehingga sumbunya miring. Peashooter memakai engsel tetap `u = normalize(0.8, 0.5, −0.4)` di ruang kepala, melalui pangkal daun belakang kepala.
 
 ### Hierarchical transformation
 
@@ -212,7 +200,7 @@ Animasi memakai selisih waktu antar-frame (`dt`), fungsi sinus, dan easing untuk
 
 ## Panduan demonstrasi dan video trailer
 
-Untuk memeriksa rubrik saat presentasi, tampilkan scene gabungan, tekan `1`–`4`, lalu ambil detail mata dan daun yang bergerak otomatis. Gunakan `X` untuk membantu menjelaskan sumbu daun dan `J` untuk mengulang perjalanan Zombie. Viewer karakter dapat dipakai untuk memperlihatkan bentuk dari beberapa sudut.
+Untuk memeriksa rubrik saat presentasi, tampilkan scene gabungan, tekan `1`–`4`, lalu ambil detail mata dan daun yang bergerak otomatis. Gunakan `X` untuk membantu menjelaskan sumbu daun dan `J` untuk mengulang perjalanan Zombie. Tahan `Z` saat terbang untuk close-up bentuk karakter dari beberapa sudut.
 
 Video pengumpulan mengikuti catatan rubrik: **berbentuk promosi/trailer dengan storyline, sekitar 1–2 menit**. Penjelasan teknis dapat ditempatkan dalam laporan dan presentasi. Berikut usulan pengambilan gambar sekitar 90 detik; waktunya merupakan rencana, bukan timestamp video yang sudah dibuat.
 
@@ -225,7 +213,7 @@ Video pengumpulan mengikuti catatan rubrik: **berbentuk promosi/trailer dengan s
 | 01:00–01:18 | Peashooter menembak Zombie | Translate peluru, recoil, percikan, transformasi hierarki |
 | 01:18–01:30 | Tampilan bersama di halaman dan judul penutup | Tiga karakter dalam satu environment dan penyelesaian alur trailer |
 
-Orbit otomatis `P` membantu pengambilan gambar tanaman. Trailer bawaan `T` di viewer tanaman berdurasi 20 detik per karakter dan dapat menjadi bahan cuplikan. Video pengumpulan tetap perlu menampilkan alur gabungan dan seluruh fitur yang diminta. Jika ingin menyertakan nama anggota dalam video, tempatkan pada credits sesuai catatan rubrik.
+Video direkam manual dari scene gabungan: kamera dikendalikan dengan keyboard dan mouse, aksi dipicu dengan tombol. Orbit otomatis `P` dan preset `V` dapat membantu pengambilan gambar. Jika ingin menyertakan nama anggota dalam video, tempatkan pada credits sesuai catatan rubrik.
 
 ## Checklist sebelum dikumpulkan
 
@@ -245,33 +233,24 @@ Orbit otomatis `P` membantu pengambilan gambar tanaman. Trailer bawaan `T` di vi
 
 ```text
 index.html                    Scene gabungan
-viewer.html                   Viewer Sunflower/Peashooter
 README.md                     Penjelasan project dan rubrik
-docs/PUSH_KE_GITHUB.md         Panduan upload ke repository yang sudah ada
 src/
   main.js                     Integrasi scene, lintasan Zombie, kontrol, render loop
   drone.js                    Kamera bebas, preset, dan orbit otomatis
   lighting.js                 Data dan fungsi pencahayaan malam
   cast.js                     Transformasi penempatan tanaman di environment
-  viewer.js                   Pemilihan karakter untuk viewer
   core/
     math.js                   Operasi vektor/matriks, arbitrary axis, easing
     geometry.js               Generator geometri, kurva Bézier, tube, daun
     renderer.js               Shader tanaman, scene graph, outline, bayangan
     animator.js               Pengatur aksi animasi
-    app.js, hud.css           Kamera dan antarmuka viewer tanaman
-    lawn.js, sun.js           Environment viewer dan efek Sun
+    sun.js                    Efek Sun
   characters/
     sunflower/                Model, animasi, dan spesifikasi Sunflower
     peashooter/                Model, animasi, spesifikasi, dan efek tembakan
-    zombie/                   Model, geometri, tulang, shader, dan viewer Zombie
+    zombie/                   Model, tulang, shader, dan animasi Zombie
   env/
     graveyard/                Kuburan dan objek pendukung
     road/                     Jalan raya
     house/                    Rumah dan pekarangan
-    core/transform.js         Operasi matriks environment
 ```
-
-## Upload ke GitHub
-
-Folder hasil salinan/ekstraksi dapat tidak memiliki metadata Git. Karena repository tujuan sudah memiliki riwayat pada branch `main`, ikuti [panduan push ke GitHub](docs/PUSH_KE_GITHUB.md) untuk clone repository, menyalin versi lokal, memeriksa perubahan, lalu commit dan push.
