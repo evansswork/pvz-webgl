@@ -13,7 +13,7 @@ import { createEnvironment } from "./environment.js";
 // =====================================================================
 //  1. SHADER GRAVEYARD
 // =====================================================================
-//  uTerrain = 0/3: objek biasa, batu nisan & balok makam -> warna polos uCol
+//  uTerrain = 0/3: batu kuburan (nisan, makam, jalan setapak, tembok)
 //  uTerrain = 1/9: rumput datar (dalam & luar kuburan) + kabut jauh
 //  uTerrain = 10 : titik-titik bintang putih di langit (gl.POINTS)
 // =====================================================================
@@ -37,6 +37,7 @@ uniform float uEx, uA;
 uniform int uMode;
 uniform int uTerrain;
 
+// --- Fungsi Noise Prosedural Simpel (Tanpa File Gambar/Tekstur Luar) ---
 float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
@@ -50,8 +51,12 @@ float fbm(vec2 p) {
   for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.0; a *= 0.5; }
   return s / 0.9375;
 }
+// Noise 3D ringan agar tekstur batu konsisten di semua sisi (atas, depan, samping)
+float n3(vec3 p, float sc) {
+  return vnoise(p.xz * sc + vec2(p.y * sc * 0.77, p.y * sc * 0.31));
+}
 
-// Rumput malam bernuansa hijau alami (dipakai di dalam & luar kuburan)
+// --- Material 1: Rumput Malam (Dalam & Luar Kuburan) ---
 vec3 grassAlbedo(vec3 p, vec3 n) {
   float broad = fbm(p.xz * 0.0035);
   float clump = fbm(p.xz * 0.025 + 7.0);
@@ -68,6 +73,29 @@ vec3 grassAlbedo(vec3 p, vec3 n) {
   return col * (0.75 + 0.25 * n.y);
 }
 
+// --- Material 2: Batu Kuburan Realistis (Nisan, Makam, Jalan Setapak, Tembok) ---
+vec3 stoneAlbedo(vec3 p, vec3 n, vec3 base) {
+  float h = max(p.y - 10.535, 0.0);                    // ketinggian dari permukaan tanah
+  float grain = n3(p, 1.6);                            // pori-pori/butiran halus batu
+  float blotch = fbm(p.xz * 0.18 + vec2(p.y * 0.15));  // bercak batu tua tidak rata
+  float streak = vnoise(vec2((p.x + p.z) * 0.6, p.y * 0.05)); // noda air hujan vertikal
+
+  // Variasi warna dasar batu + noda pelapukan
+  vec3 col = base * (0.78 + 0.44 * grain);
+  col *= 1.0 - 0.25 * smoothstep(0.50, 0.85, blotch);
+  col *= 1.0 - 0.22 * smoothstep(0.45, 0.80, streak) * smoothstep(0.0, 35.0, h);
+
+  // Lumut hijau gelap: merambat di bagian bawah batu & permukaan yang menghadap atas
+  float nearGround = 1.0 - smoothstep(0.0, 18.0, h);
+  float mossMask = smoothstep(0.45, 0.72, blotch + nearGround * 0.55 - 0.10);
+  vec3 mossCol = mix(vec3(0.010, 0.024, 0.008), vec3(0.020, 0.035, 0.011), grain);
+  col = mix(col, mossCol, mossMask * 0.75 * (0.45 + 0.55 * max(n.y, 0.0)));
+
+  // Ambient Occlusion (bayangan kontak gelap di kaki batu tempat menancap ke tanah)
+  float groundAO = mix(0.45, 1.0, smoothstep(0.0, 5.5, h));
+  return col * groundAO * (0.80 + 0.20 * n.y);
+}
+
 out vec4 fC;
 void main() {
   // 10 = Titik-titik bintang putih di langit
@@ -76,6 +104,7 @@ void main() {
     return;
   }
 
+  // Hitung normal permukaan otomatis dari turunan ruang layar
   vec3 dx = dFdx(vP);
   vec3 dy = dFdy(vP);
   vec3 n = normalize(cross(dx, dy));
@@ -83,24 +112,47 @@ void main() {
   vec3 v = normalize(uCam - vP);
   if (dot(n, v) < 0.0) n = -n;
 
+  // Bump normal tipis khusus objek batu agar permukaan balok tampak bertekstur pahatan
+  bool isGrass = (uTerrain == 1 || uTerrain == 9);
+  if (uMode == 0 && !isGrass) {
+    vec3 bump = vec3(
+      n3(vP + vec3(0.35, 0.0, 0.0), 1.2) - n3(vP - vec3(0.35, 0.0, 0.0), 1.2),
+      n3(vP + vec3(0.0, 0.35, 0.0), 1.2) - n3(vP - vec3(0.0, 0.35, 0.0), 1.2),
+      n3(vP + vec3(0.0, 0.0, 0.35), 1.2) - n3(vP - vec3(0.0, 0.0, 0.35), 1.2)
+    );
+    n = normalize(n + bump * 0.22);
+  }
+
+  // Pencahayaan malam: Ambient langit-tanah + Diffuse sinar bulan + Specular & Rim
   vec3 L = normalize(vec3(0.5, 0.9, 0.4));
   float d = max(dot(n, L), 0.0);
 
   float h = n.y * 0.5 + 0.5;
-  vec3 amb = mix(vec3(0.4, 0.45, 0.55), vec3(0.8, 0.9, 1.0), h);
-  vec3 l = amb * 0.8 + vec3(1.0, 0.95, 0.85) * d * 0.6;
+  vec3 amb = mix(vec3(0.38, 0.43, 0.54), vec3(0.78, 0.88, 1.0), h);
+  vec3 l = amb * 0.8 + vec3(1.0, 0.95, 0.85) * d * 0.65;
+
+  // Kabut malam berdasarkan jarak horizontal dari kamera
+  float distCam = length(vP.xz - uCam.xz);
+  float fog = smoothstep(1000.0, 4600.0, distCam);
+  vec3 fogCol = vec3(0.024, 0.038, 0.068);
 
   if (uMode == 0) {
-    if (uTerrain == 9 || uTerrain == 1) {
+    if (isGrass) {
       vec3 grass = grassAlbedo(vP, n);
-      float distCam = length(vP.xz - uCam.xz);
-      float fog = smoothstep(1000.0, 4600.0, distCam);
-      vec3 fogCol = vec3(0.024, 0.038, 0.068);
       vec3 litGrass = pow(grass, vec3(0.45)) * l * uEx;
       fC = vec4(mix(litGrass, fogCol * uEx, fog), uA);
       return;
     }
-    vec3 gc = pow(uCol, vec3(0.45)) * l * vec3(0.86, 0.93, 1.06) * uEx;
+
+    // Objek batu kuburan: warna batu berlumut + pantulan sinar bulan (specular & rim)
+    vec3 stone = stoneAlbedo(vP, n, uCol);
+    vec3 H = normalize(L + v);
+    float spec = pow(max(dot(n, H), 0.0), 24.0) * 0.16;
+    float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0) * 0.12 * max(n.y + 0.3, 0.0);
+
+    vec3 gc = (pow(stone, vec3(0.45)) * l + vec3(0.75, 0.85, 1.0) * (spec + rim)) * vec3(0.86, 0.93, 1.06) * uEx;
+    gc = mix(gc, fogCol * uEx, fog);
+    // Tone mapping ACES agar kontras cahaya malam lembut dan realistis
     gc = clamp((gc * (2.51 * gc + 0.03)) / (gc * (2.43 * gc + 0.59) + 0.14), 0.0, 1.0);
     fC = vec4(gc, uA);
   } else {

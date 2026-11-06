@@ -612,4 +612,72 @@ export const OBJEK_GRAVEYARD = [
   buatTembokSejajarX("TembokBelakang", X_MIN, X_MAX, Z_MAX);        // Belakang utuh polos
   buatTembokSejajarZ("TembokKiri", Z_MIN, Z_MAX, X_MIN);            // Samping kiri utuh polos
   buatTembokSejajarZ("TembokKanan", Z_MIN, Z_MAX, X_MAX);           // Samping kanan utuh polos
+
+  // 3. POHON TUA KUBURAN BESAR DI AREA KOSONG (Kanan-Belakang: X = 210, Z = 210)
+  //    Bukan kerucut pohon natal, melainkan pohon tua besar bercabang dengan
+  //    batang miring, dahan menyebar, dan gumpalan kanopi ellipsoid gelap.
+  function buatRuasKayu(nama, jenis, A, B, r, warna) {
+    const C = [(A[0] + B[0]) * 0.5, (A[1] + B[1]) * 0.5, (A[2] + B[2]) * 0.5];
+    const W = [(B[0] - A[0]) * 0.5, (B[1] - A[1]) * 0.5, (B[2] - A[2]) * 0.5];
+    const len = Math.hypot(W[0], W[1], W[2]) || 1;
+    const wx = W[0] / len, wy = W[1] / len, wz = W[2] / len;
+    // Vektor tegak lurus U dan V dengan panjang r
+    const refY = Math.abs(wy) < 0.9 ? 1 : 0, refX = 1 - refY;
+    let ux = wy * 0 - wz * refY, uy = wz * refX - wx * 0, uz = wx * refY - wy * refX;
+    const uLen = Math.hypot(ux, uy, uz) || 1;
+    ux = (ux / uLen) * r; uy = (uy / uLen) * r; uz = (uz / uLen) * r;
+    const vx = (wy * uz - wz * uy), vy = (wz * ux - wx * uz), vz = (wx * uy - wy * ux);
+    return {
+      nama,
+      jenis,
+      matrix: [ux, uy, uz, 0, vx, vy, vz, 0, W[0], W[1], W[2], 0, C[0], C[1], C[2], 1],
+      pusat: [0, 0, 0],
+      ukuran_proksi: [1, 1, 1],
+      warna,
+    };
+  }
+
+  function buatRimbunDaun(nama, cx, cy, cz, rx, ry, rz, warna) {
+    return {
+      nama,
+      jenis: "ellipsoid",
+      matrix: [rx, 0, 0, 0, 0, ry, 0, 0, 0, 0, rz, 0, cx, cy, cz, 1],
+      pusat: [0, 0, 0],
+      ukuran_proksi: [1, 1, 1],
+      warna,
+    };
+  }
+
+  const PX = 210.0;
+  const PZ = 210.0;
+  const KAYU_TUA = [0.032, 0.022, 0.015];
+  const KAYU_GELAP = [0.024, 0.016, 0.011];
+  const DAUN_KELAM_1 = [0.012, 0.022, 0.010];
+  const DAUN_KELAM_2 = [0.016, 0.028, 0.012];
+  const DAUN_KELAM_3 = [0.020, 0.034, 0.014];
+
+  OBJEK_GRAVEYARD.push(
+    // Batang utama besar (2 ruas agak meliuk tua, tinggi mencapai Y = 210)
+    buatRuasKayu("Pohon.BatangBawah", "silinder", [PX, 10, PZ], [PX - 10, 115, PZ + 8], 28, KAYU_TUA),
+    buatRuasKayu("Pohon.BatangAtas", "silinder", [PX - 10, 105, PZ + 8], [PX + 6, 210, PZ - 6], 21, KAYU_TUA),
+
+    // Dahan-dahan besar menyebar ke segala arah
+    buatRuasKayu("Pohon.DahanKiri", "silinder", [PX - 6, 150, PZ + 4], [PX - 105, 235, PZ - 25], 13, KAYU_TUA),
+    buatRuasKayu("Pohon.DahanKanan", "silinder", [PX, 165, PZ], [PX + 110, 245, PZ + 20], 13, KAYU_TUA),
+    buatRuasKayu("Pohon.DahanDepan", "silinder", [PX - 4, 160, PZ + 2], [PX + 15, 230, PZ - 105], 12, KAYU_TUA),
+    buatRuasKayu("Pohon.DahanBelakang", "silinder", [PX + 2, 175, PZ - 2], [PX - 25, 250, PZ + 95], 12, KAYU_TUA),
+    buatRuasKayu("Pohon.DahanPucuk", "silinder", [PX + 6, 200, PZ - 6], [PX - 8, 285, PZ + 10], 11, KAYU_TUA),
+
+    // Ranting tua meruncing yang mencuat dari dahan
+    buatRuasKayu("Pohon.Ranting1", "kerucut", [PX - 85, 220, PZ - 20], [PX - 145, 255, PZ - 50], 7, KAYU_GELAP),
+    buatRuasKayu("Pohon.Ranting2", "kerucut", [PX + 85, 230, PZ + 15], [PX + 145, 265, PZ + 40], 7, KAYU_GELAP),
+
+    // Kanopi daun rimbun gelap (gumpalan ellipsoid lebar, bukan kerucut pohon natal)
+    buatRimbunDaun("Pohon.DaunTengah", PX, 255, PZ, 95, 52, 90, DAUN_KELAM_1),
+    buatRimbunDaun("Pohon.DaunKiri", PX - 105, 245, PZ - 25, 78, 44, 72, DAUN_KELAM_2),
+    buatRimbunDaun("Pohon.DaunKanan", PX + 110, 255, PZ + 20, 80, 45, 74, DAUN_KELAM_2),
+    buatRimbunDaun("Pohon.DaunDepan", PX + 15, 240, PZ - 100, 74, 42, 68, DAUN_KELAM_2),
+    buatRimbunDaun("Pohon.DaunBelakang", PX - 25, 260, PZ + 95, 76, 44, 72, DAUN_KELAM_1),
+    buatRimbunDaun("Pohon.DaunAtas", PX - 10, 305, PZ + 8, 82, 46, 78, DAUN_KELAM_3),
+  );
 })();
