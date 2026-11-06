@@ -1,7 +1,8 @@
 /* =========================================================================
    zombie/animation.js — Animasi Zombie (dihitung tiap frame)
      TRANSLATE + SCALING : napas (badan naik-turun + membesar), langkah jalan
-     ROTATE              : kepala menoleh, rahang, lengan & kaki berayun
+     ROTATE              : kepala menoleh, lengan & kaki berayun
+     ARBITRARY AXIS      : rahang menganga miring (sumbu 3D dislokasi rahang)
      SCALING             : mata berkedip (tinggi mata di-scale)
      HIERARCHICAL        : bahu → siku, pinggul → lutut, kepala → rahang/mata/rambut
    ========================================================================= */
@@ -95,12 +96,13 @@ export function makeZombieAnimator() {
       M(m4.Y(headAngle), m4.Z(headTilt))
     );
 
-    // (4) ROTASI RAHANG — engsel rahang (mandibular pivot) tepat di pertemuan pangkal rahang & kepala [0, 1.72, 0.55]
-    const jawPivot = [0, 1.72, 0.55]; // titik tumpu engsel rahang sesuai titik awal/akhir jawCurve
+    // (4) ARBITRARY AXIS: rotasi rahang menganga dengan sumbu engsel 3D miring
+    // Menggambarkan rahang zombie yang agak terkilir / dislokasi asimetris khas zombie saat menganga
+    const jawPivot = [0, 1.72, 0.55]; // titik tumpu engsel rahang di persendian tengkorak
     const jawBase = 0.12; // mulut sedikit terbuka saat diam agar gigi & rongga mulut terlihat rapi
     const jawSwing = ((1 - Math.cos(T * 2.2)) / 2) * 0.45;
     const jawAngle = jawBase + jawSwing;
-    const jawAxis = [1, 0, 0]; // sumbu engsel horizontal rapi (seperti mekanisme pvz-webgl)
+    const jawAxis = [0.93, 0.22, -0.28]; // Sumbu engsel sembarang 3D (Arbitrary Axis)
     const jawWrap = pivotRot(jawPivot, axisRot(jawAxis, jawAngle));
 
     // (5) HIERARCHICAL TRANSFORMATION — lengan berayun (bahu -> siku)
