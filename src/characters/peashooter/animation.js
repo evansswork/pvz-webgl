@@ -3,9 +3,8 @@
 
    OTOMATIS (kebiasaan, jalan terus tanpa tombol):
      ARBITRARY  : daun di belakang kepala mengepak naik-turun. Diputar terhadap
-                  ENGSEL di pangkal daun; arah engsel = (arah daun × normal
-                  kepala) dimiringkan ke arah normal → sumbu miring, bukan X/Y/Z
-                  → M4.rotateArbitraryAxis.
+                  ENGSEL tetap di pangkal daun, sumbu u = normalize(0.8, 0.5, −0.4)
+                  (ruang kepala) → sumbu miring, bukan X/Y/Z → M4.rotateArbitraryAxis.
      SCALING    : mata membesar (melotot 1 → 1.45×), lalu menutup (tinggi 0.08),
                   lalu terbuka lagi — tiap ±5 detik.
 
@@ -59,7 +58,7 @@ export function psIdle(pose, t) {
 const kick = (tt) => (tt > 0 ? Math.exp(-tt * 7.5) * Math.sin(tt * 19) : 0);
 
 export const PS_ACTIONS = {
-  /* tumbuh dari tanah (dipakai viewer saat dibuka) */
+  /* tumbuh dari tanah (tombol G di scene utama) */
   grow: {
     dur: 2.6,
     apply(p, pose) {
@@ -78,7 +77,7 @@ export const PS_ACTIONS = {
      mundur lalu kembali. Kacangnya sendiri bergerak lurus ke depan.        */
   shoot: {
     dur: 1.4,
-    apply(p, pose, ctx, st, world) {
+    apply(p, pose, ctx, world) {
       const t = p * 1.4, fireT = 0.5;
       if (t < fireT) {
         const c = Ease.inOutSine(seg(t, 0, fireT));
@@ -112,6 +111,9 @@ export const PS_ACTIONS = {
   },
 };
 
+/** Sumbu engsel daun kepala (ruang kepala), tetap — dipakai rotasi arbitrary axis */
+export const HEAD_LEAF_AXIS = V3.norm([0.8, 0.5, -0.4]);
+
 /** Tulis pose ke node Peashooter */
 export function applyPeashooterPose(ps, pose) {
   ps.root.resetPose();
@@ -130,15 +132,12 @@ export function applyPeashooterPose(ps, pose) {
   ps.leaves.forEach((lf, i) => { lf.rotation[2] += pose.leafRot[i]; });
   ps.eyes.forEach((e) => { e.scale = pose.eyeScale.slice(); });   // SCALING
 
-  /* ARBITRARY AXIS: daun kepala diputar terhadap engsel di pangkalnya.
-     P     = pangkal daun (ruang kepala)
-     u     = normalize( (arah daun × normal kepala) + 0.45·normal )   → sumbu miring
+  /* ARBITRARY AXIS: daun kepala diputar terhadap engsel tetap di pangkalnya.
+     P     = pangkal daun (ruang kepala) ≈ (0, 0.246, −0.314)
+     u     = HEAD_LEAF_AXIS = normalize(0.8, 0.5, −0.4)   → sumbu miring, bukan X/Y/Z
      pre   = M4.rotateArbitraryAxis(P, u, θ) = T(P)·Rx⁻¹·Ry⁻¹·Rz(θ)·Ry·Rx·T(−P)   */
   const hl = ps.headLeaf;
-  hl.pre = null;
-  hl.updateLocal();
-  const dir = V3.norm(M4.transformDir(hl.local, hl.midrib));
-  const hinge = V3.norm(V3.add(V3.cross(dir, ps.headLeafNormal), V3.scale(ps.headLeafNormal, 0.45)));
+  const hinge = HEAD_LEAF_AXIS;
   hl.pre = M4.rotateArbitraryAxis(hl.position, hinge, pose.headLeafFlap);
 
   ps.root.updateWorld();

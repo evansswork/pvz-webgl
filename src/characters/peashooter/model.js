@@ -118,7 +118,6 @@ export function buildPeashooter(gl) {
   headLeaf.position = V3.sub(headLeafBase.p, V3.scale(headLeafBase.n, 0.02));
   headLeaf.rotation = [0, Math.PI / 2, 0.35];   // ke belakang (−Z) & sedikit naik
   headLeaf.add(new Node('headVein', new Mesh(gl, tube(hl.vein, (t) => 0.008 * (1 - t) + 0.003, 6)), M.vein));
-  headLeaf.midrib = V3.norm([0.36, -0.03, 0]);  // arah daun kepala (pangkal → ujung), untuk engsel arbitrary axis
   head.add(headLeaf);
 
   // Moncong: CONE TERPOTONG (outer + inner) + dasar gelap + bibir TORUS
@@ -137,7 +136,7 @@ export function buildPeashooter(gl) {
   snout.add(inner, back, lip);
 
   root.saveBase();
-  return { root, body, leaves, stemLower, stemUpper, neck, head, eyes, headLeaf, headLeafNormal: headLeafBase.n, snout, lip, materials: M, SN };
+  return { root, body, leaves, stemLower, stemUpper, neck, head, eyes, headLeaf, snout, lip, materials: M, SN };
 }
 
 /* ---------- Peluru kacang polong + percikan ---------- */

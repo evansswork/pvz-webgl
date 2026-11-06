@@ -1,5 +1,5 @@
 /* =========================================================================
-   peashooter/index.js — Spesifikasi karakter Peashooter (dipakai viewer & scene utama)
+   peashooter/index.js — Spesifikasi karakter Peashooter (dipakai scene utama lewat cast.js)
    ========================================================================= */
 import { V3, M4, Ease, seg } from '../../core/math.js';
 import { Node } from '../../core/renderer.js';
@@ -8,23 +8,11 @@ import { buildPeashooter, buildPeaAssets } from './model.js';
 import { PS_ACTIONS, psIdle, psMakePose, applyPeashooterPose } from './animation.js';
 
 export default {
-  hud: {
-    title: 'Peashooter',
-    desc: 'Kurva Bézier, ellipsoid, cylinder, cone dan torus, dirender dengan WebGL murni.',
-    accent: ['#a6e04f', '#5fae35'],
-    regrow: ['grow', 'Tumbuh ulang'],
-    dock: [['shoot', 'Tembak', 'Translate'], ['look', 'Menoleh', 'Rotate']],
-    auto: 'Otomatis: daun kepala mengepak (arbitrary axis) · mata melotot lalu berkedip (scaling)',
-  },
-  cam: { yaw: 0.62, pitch: 0.14, dist: 4.8, ty: 1.05 },
-  keys: { '1': 'shoot', '2': 'look', g: 'grow' },
-
   build({ gl, fx, peaHit = null }) {   // peaHit(posLokal) → true kalau kacang mengenai sesuatu (scene utama: zombie)
     const ps = buildPeashooter(gl);
     const A = buildPeaAssets(gl);
     const peas = [], splats = [];
 
-    /** Translate peluru tiap frame: posisi += kecepatan · dt */
     function spawnSplat(pos) {
       const s = { t: 0, bits: [] };
       for (let i = 0; i < 9; i++) {
@@ -49,9 +37,10 @@ export default {
         fx.add(n);
       }
     };
-    const anim = new Animator({ actions: PS_ACTIONS, idle: psIdle, makePose: psMakePose, world, state: {} });
+    const anim = new Animator({ actions: PS_ACTIONS, idle: psIdle, makePose: psMakePose, world });
 
-    function updateFx(dt, camEye) {
+    /** TRANSLATE peluru tiap frame: posisi += kecepatan · dt */
+    function updateFx(dt) {
       for (let i = peas.length - 1; i >= 0; i--) {
         const p = peas[i]; p.t += dt;
         p.n.position = V3.add(p.n.position, V3.scale(p.vel, dt));
@@ -75,37 +64,13 @@ export default {
 
     return {
       root: ps.root, ps, anim,
-      update(dt, time, camEye) {
+      update(dt, time) {
         const pose = anim.update(dt, time);
         applyPeashooterPose(ps, pose);
-        updateFx(dt, camEye);
+        updateFx(dt);
       },
       trigger: (n) => anim.trigger(n),
-      isActive: (n) => anim.isActive(n),
-      reset() { anim.clear(); },
-      focusX: () => 0,
       axisInfo: () => ps.flapAxis,
     };
-  },
-  onStart: (ch) => ch.trigger('grow'),
-
-  story: {
-    length: 20,
-    events: [[0.3, 'grow'], [5.0, 'look'], [9.2, 'shoot'], [11.0, 'shoot'], [12.8, 'shoot']],
-    cams: [
-      [0, { yaw: 0.9, pitch: 0.02, dist: 3.0, ty: 0.7 }],
-      [3.0, { yaw: -0.6, pitch: 0.3, dist: 3.0, ty: 1.2 }],     // daun kepala & mata
-      [4.8, { yaw: 0.45, pitch: 0.12, dist: 4.6, ty: 1.1 }],
-      [8.8, { yaw: -0.2, pitch: 0.08, dist: 6.0, ty: 1.1, tx: 1.8 }],
-      [14.5, { yaw: 0.55, pitch: 0.12, dist: 5.6, ty: 1.2 }],
-      [17.0, { yaw: 0.55, pitch: 0.1, dist: 6.0, ty: 1.5 }],
-      [20, { yaw: 0.45, pitch: 0.1, dist: 5.8, ty: 1.5 }],
-    ],
-    captions: [
-      [0.4, 4.6, 'Penjaga halaman sudah bangun…'],
-      [5.0, 8.6, 'Mengawasi setiap sudut.'],
-      [9.2, 14.0, 'Tembak!'],
-      [17.0, 20, '<b>PEASHOOTER</b><span>Plants vs. Zombies</span>'],
-    ],
   },
 };
