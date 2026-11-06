@@ -1,6 +1,6 @@
 # Daftar Lengkap Bentuk Geometri Karakter Zombie
 
-Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang diimplementasikan dalam [`src/characters/zombie/zombieScene.js`](file:///D:/Users/Natan/3-university/PCU/1-academic/Subject/semester-5/grafkom/tugas_git_gabungan/pvz-webgl/src/characters/zombie/zombieScene.js).
+Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang diimplementasikan dalam [`model.js`](model.js).
 
 ---
 
@@ -8,7 +8,7 @@ Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang di
 
 | Kategori | Bentuk / Metode | Bagian Karakter |
 | :--- | :--- | :--- |
-| **Quadric (3 Jenis)** | **Ellipsoid** | Kepala (*textured*), bola mata, pupil, lubang hidung, kerutan dahi, bibir atas & bawah (*curved*), rongga mulut, lidah, otot dagu, kancing jas, lipatan lengan jas, sabuk, pinggul celana, sendi bahu, sendi siku, telapak tangan, sendi jari (*knuckle*), ujung jari, kuku, sendi pinggul, sendi lutut, sepatu, dan piringan alas (*disc*). |
+| **Quadric (3 Jenis)** | **Ellipsoid** | Kepala (*textured*), bola mata, pupil, lubang hidung, kerutan dahi, bibir atas & bawah (*curved*), rongga mulut, lidah, otot dagu, kancing jas, lipatan lengan jas, sabuk, pinggul celana, sendi bahu, sendi siku, telapak tangan, sendi jari (*knuckle*), ujung jari, kuku, sendi pinggul, sendi lutut, dan sepatu. |
 | | **Cylinder** | Leher, betis kaki, ruas-ruas jari, dan urat-urat mata (*bloodshot veins*). |
 | | **Cone / Truncated Cone** | Gigi taring (*cone* penuh: 1 di rahang atas menghadap bawah, 1 di rahang bawah nomor 2 dari kiri menghadap atas), lengan jas atas, lengan jas bawah, potongan paha celana, dan potongan celana melorot kaki kanan. |
 | **Objek Lain** | **Box** | Sol sepatu, kepala gesper sabuk, saku/kantong jas, motif garis-garis dasi, dan gigi seri/geraham. |
@@ -89,8 +89,3 @@ Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang di
 * **Betis / Kaki Bawah**: *Cylinder* warna kulit hijau pucat zombie.
 * **Sepatu**: *Ellipsoid* memanjang berwarna cokelat tua.
 * **Sol Sepatu**: *Box* tipis memanjang di bagian dasar sepatu berwarna gelap.
-
----
-
-### 5. Objek Panggung (Environment)
-* **Piringan Panggung (*Disc Platform*)**: *Ellipsoid* pipih melingkar berdiameter besar di dasar lantai sebagai pijakan tempat zombie berdiri.

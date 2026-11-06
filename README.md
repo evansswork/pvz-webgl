@@ -78,14 +78,14 @@ Rubrik pada lembar penilaian memuat sepuluh komponen, masing-masing berbobot 10,
 
 | Kriteria | Bobot | Implementasi dan bukti | Cara menunjukkan |
 |---|---:|---|---|
-| 3D Curve, harus pada karakter | 10 | Daun dan tulang daun tanaman menggunakan Bézier; batang Peashooter berupa tube Bézier 3D; rambut dan rahang Zombie mengikuti Bézier. [Geometri tanaman](src/core/geometry.js), [model Peashooter](src/characters/peashooter/model.js), [model Zombie](src/characters/zombie/zombieScene.js). | Ambil detail batang, daun, rambut, dan rahang dari samping serta depan. |
-| Object 1 | 10 | Ellipsoid untuk wajah Sunflower, kepala Peashooter, serta kepala dan sendi Zombie. [Sunflower](src/characters/sunflower/model.js), [Peashooter](src/characters/peashooter/model.js), [Zombie](src/characters/zombie/zombieScene.js). | Tunjukkan volume kepala dari beberapa sudut. |
+| 3D Curve, harus pada karakter | 10 | Daun dan tulang daun tanaman menggunakan Bézier; batang Peashooter berupa tube Bézier 3D; rambut dan rahang Zombie mengikuti Bézier. [Geometri tanaman](src/core/geometry.js), [model Peashooter](src/characters/peashooter/model.js), [model Zombie](src/characters/zombie/model.js). | Ambil detail batang, daun, rambut, dan rahang dari samping serta depan. |
+| Object 1 | 10 | Ellipsoid untuk wajah Sunflower, kepala Peashooter, serta kepala dan sendi Zombie. [Sunflower](src/characters/sunflower/model.js), [Peashooter](src/characters/peashooter/model.js), [Zombie](src/characters/zombie/model.js). | Tunjukkan volume kepala dari beberapa sudut. |
 | Object 2 | 10 | Cylinder pada batang Sunflower, penghubung batang–kepala Peashooter, serta leher, betis, dan ruas jari Zombie. Sumber model sama seperti baris Object 1. | Perlihatkan batang, penghubung kepala, dan anggota tubuh Zombie. |
 | Object 3, wajib quadric selain ellipsoid dan cylinder | 10 | **Elliptic paraboloid** pada kelopak Sunflower; **cone terpotong** pada moncong Peashooter dan lengan jas Zombie. [Geometri tanaman](src/core/geometry.js), [geometri bersama](src/core/geometry.js). | Sorot kelopak dan moncong dari samping, serta bentuk lengan jas. |
 | Aesthetic: environment dan objek smooth saat transformasi | 10 | Kuburan, jalan, rumah, pencahayaan malam, toon shading tanaman, outline, bayangan planar tanaman, easing animasi, dan kamera dengan damping. [Environment](src/env/), [lighting](src/lighting.js), [renderer](src/core/renderer.js), [kamera](src/drone.js). | Rekam panorama dan transisi gerakan karakter/kamera. Kualitas visual dinilai dari hasil render. |
 | Translate | 10 | Wajah Sunflower dan Sun berpindah; kepala Peashooter dan peluru bergeser; Zombie berjalan di lintasan. [Animasi Sunflower](src/characters/sunflower/animation.js), [Peashooter](src/characters/peashooter/index.js), [scene utama](src/main.js). | Tekan `1`, `3`, lalu `J` di scene utama. |
-| Rotate | 10 | Rotasi Z pada leher Sunflower, rotasi Y pada leher Peashooter, rotasi sendi dan arah hadap Zombie. [Animasi Sunflower](src/characters/sunflower/animation.js), [animasi Peashooter](src/characters/peashooter/animation.js), [Zombie](src/characters/zombie/zombieScene.js). | Tekan `2`, `4`, dan rekam gerakan Zombie. |
-| Scaling | 10 | Mata Sunflower menyusut saat berkedip; mata Peashooter membesar lalu berkedip; badan Zombie berdenyut dan matanya berkedip. Sumber: kedua file animasi tanaman dan `zombieScene.js`. | Rekam detail mata beberapa detik; `G` menunjukkan pertumbuhan tanaman dan scale-up Zombie. |
+| Rotate | 10 | Rotasi Z pada leher Sunflower, rotasi Y pada leher Peashooter, rotasi sendi dan arah hadap Zombie. [Animasi Sunflower](src/characters/sunflower/animation.js), [animasi Peashooter](src/characters/peashooter/animation.js), [Zombie](src/characters/zombie/animation.js). | Tekan `2`, `4`, dan rekam gerakan Zombie. |
+| Scaling | 10 | Mata Sunflower menyusut saat berkedip; mata Peashooter membesar lalu berkedip; badan Zombie berdenyut dan matanya berkedip. Sumber: file `animation.js` ketiga karakter. | Rekam detail mata beberapa detik; `G` menunjukkan pertumbuhan tanaman dan scale-up Zombie. |
 | Rotate Arbitrary Axis | 10 | Daun Sunflower dan daun belakang kepala Peashooter berputar terhadap engsel miring melalui `M4.rotateArbitraryAxis`. [Matematika](src/core/math.js), kedua file animasi tanaman. | Tekan `X` dan sorot daun saat bergerak otomatis. Catatan khusus Zombie dijelaskan di bawah. |
 | Hierarchical Transformation | 10 | Scene graph tanaman menggunakan `world = parent.world × local`; Zombie memakai hierarki `BoneNode`. [Node tanaman](src/core/renderer.js), [BoneNode Zombie](src/characters/zombie/ZombieNode.js), [penempatan karakter](src/cast.js). | Putar kepala tanaman: mata, mulut, kelopak/moncong ikut bergerak. Rekam bahu–siku dan pinggul–lutut Zombie. |
 | **Total bobot** | **100** | | |
@@ -132,7 +132,7 @@ Saat `3` ditekan di scene utama, kepala melakukan ancang-ancang dan recoil, lalu
 
 ### Zombie
 
-Implementasi: [zombieScene.js](src/characters/zombie/zombieScene.js), [geometri](src/core/geometry.js), [hierarki tulang](src/characters/zombie/ZombieNode.js).
+Implementasi: [model](src/characters/zombie/model.js), [animasi](src/characters/zombie/animation.js), [shader & render](src/characters/zombie/index.js), [hierarki tulang](src/characters/zombie/ZombieNode.js), [geometri](src/core/geometry.js).
 
 | Bagian | Bentuk/metode |
 |---|---|
@@ -145,7 +145,7 @@ Implementasi: [zombieScene.js](src/characters/zombie/zombieScene.js), [geometri]
 
 Scene utama menerapkan matriks `T(posisi) × Ry(arah hadap) × S(55)` untuk membawa Zombie ke dunia gabungan. Animasi tubuh meliputi napas, kepala menoleh, mata berkedip, rahang bergerak, serta ayunan tangan dan kaki. Zombie muncul dalam keadaan berdiri (`riseProgress = 1`), kemudian berjalan mengikuti `ZOMBIE_PATH` di `src/main.js`.
 
-**Catatan Rotate Arbitrary Axis pada Zombie:** fungsi `axisRot` menerima sumbu umum, tetapi animasi rahang dalam `zombieScene.js` saat ini memasukkan `jawAxis = [1, 0, 0]`. Gerak rahang tersebut merupakan rotasi terhadap garis melalui pivot yang sejajar X. Bukti animasi dengan sumbu miring pada project ini berasal dari daun Sunflower dan Peashooter. Jika kriteria sumbu miring diwajibkan untuk setiap karakter, animasi Zombie perlu disesuaikan dan didemonstrasikan sebelum diklaim memenuhi bagian tersebut.
+**Catatan Rotate Arbitrary Axis pada Zombie:** fungsi `axisRot` menerima sumbu umum, tetapi animasi rahang dalam `zombie/animation.js` saat ini memasukkan `jawAxis = [1, 0, 0]`. Gerak rahang tersebut merupakan rotasi terhadap garis melalui pivot yang sejajar X. Bukti animasi dengan sumbu miring pada project ini berasal dari daun Sunflower dan Peashooter. Jika kriteria sumbu miring diwajibkan untuk setiap karakter, animasi Zombie perlu disesuaikan dan didemonstrasikan sebelum diklaim memenuhi bagian tersebut.
 
 Dokumen tambahan: [daftar bentuk Zombie](src/characters/zombie/daftar_bentuk.md).
 

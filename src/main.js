@@ -27,7 +27,7 @@ import { NIGHT, TILE, LAWN_Y, lawnTile, toonNightEnv } from "./lighting.js";
 import { placeCharacter } from "./cast.js";
 import sunflowerSpec from "./characters/sunflower/index.js";
 import peashooterSpec from "./characters/peashooter/index.js";
-import { createZombieScene } from "./characters/zombie/zombieScene.js";   // zombie teman (tidak diubah)
+import { createZombieScene } from "./characters/zombie/index.js";
 
 /* ---------------- 1. Environment (tidak diubah) ---------------- */
 const graveyard = createGraveyardScene();
@@ -183,7 +183,7 @@ function render(dt) {
 
   // zombie (renderer milik teman)
   updateZombie(dt);
-  zombie.update(dt, { animOn: true, isWalking: zb.walking, walkTime: zb.walkTime, riseProgress: 1.0, real: true });
+  zombie.update(dt, { isWalking: zb.walking, walkTime: zb.walkTime });
   zombie.render(P, V, zombieWorld(), eye);
 }
 

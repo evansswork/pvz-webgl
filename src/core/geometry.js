@@ -532,69 +532,6 @@ export function zCone(r, h = 1, sl = 18, down = false, rz = r) {
 }
 
 /**
- * BUKAN QUADRIC: TORUS (Cincin Donat)
- * Menghasilkan bentuk donat berpusat di sumbu Y dengan radius utama R dan radius tabung r.
- * Digunakan untuk: kerah baju, manset lengan, dan lubang bibir zombie.
- * @param {number} R - Jarak dari pusat cincin ke tengah tabung
- * @param {number} r - Radius penampang tabung
- * @param {number} su - Segmen pembagian keliling cincin utama
- * @param {number} sv - Segmen pembagian penampang tabung
- * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
- */
-function zTorus(R, r, su = 36, sv = 14) {
-  const p = [],
-    n = [],
-    i = [];
-  for (let a = 0; a <= su; a++) {
-    const u = (2 * Math.PI * a) / su;
-    for (let b = 0; b <= sv; b++) {
-      const v = (2 * Math.PI * b) / sv;
-      p.push(
-        (R + r * Math.cos(v)) * Math.cos(u),
-        r * Math.sin(v),
-        (R + r * Math.cos(v)) * Math.sin(u),
-      );
-      n.push(
-        Math.cos(v) * Math.cos(u),
-        Math.sin(v),
-        Math.cos(v) * Math.sin(u),
-      );
-    }
-  }
-  grid(su, sv, i);
-  return pack(p, n, i);
-}
-
-/**
- * QUADRIC: ELLIPTIC PARABOLOID
- * Menghasilkan kubah mangkuk elips dangkal dengan persamaan z = h * (1 - x²/a² - y²/b²).
- * Digunakan untuk: tempurung rongga mulut dan bentuk kelopak mata.
- * @param {number} a - Radius semi-sumbu X
- * @param {number} b - Radius semi-sumbu Y
- * @param {number} h - Kedalaman/tinggi parabola
- * @param {number} rg - Jumlah cincin konsentris (radial grid)
- * @param {number} sl - Jumlah potongan melingkar (angular slices)
- * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
- */
-function paraboloid(a, b, h, rg = 10, sl = 28) {
-  const p = [],
-    n = [],
-    i = [];
-  for (let k = 0; k <= rg; k++) {
-    const r = k / rg;
-    for (let j = 0; j <= sl; j++) {
-      const th = (2 * Math.PI * j) / sl,
-        x = a * r * Math.cos(th),
-        y = b * r * Math.sin(th);
-      p.push(x, y, h * (1 - r * r));
-      n.push(...nrm([(2 * h * x) / a / a, (2 * h * y) / b / b, 1]));
-    }
-  }
-  grid(rg, sl, i);
-  return pack(p, n, i);
-}
-
-/**
  * BUKAN QUADRIC: BOX (Balok 3D)
  * Menghasilkan balok dengan dimensi lebar (w), tinggi (h), dan kedalaman (d).
  * Memiliki 6 sisi dengan vektor normal tegak lurus per-sisi (flat shading).
@@ -694,40 +631,6 @@ function zTube(path, rf, ns = 28, rs = 10) {
   }
   grid(ns, rs, i);
   return pack(p, n, i);
-}
-
-/**
- * MESH KURVA: LEAF (Permukaan Daun / Bidang Lentur)
- * Membangun lembaran permukaan melengkung yang dibatasi oleh dua kurva Bézier kubik
- * (batas kiri L dan batas kanan R), dengan efek cekungan di tengah (cup).
- * Digunakan untuk: kerah baju zombie yang terlipat dan daun telinga.
- * @param {Array<Array<number>>} L - Empat titik kontrol kurva tepi kiri
- * @param {Array<Array<number>>} R - Empat titik kontrol kurva tepi kanan
- * @param {number} cup - Kedalaman lengkungan cekungan tengah
- * @param {number} nt - Segmen pembagian longitudinal (sepanjang daun)
- * @param {number} ns - Segmen pembagian transversal (lebar daun)
- * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
- */
-function zLeaf(L, R, cup, nt = 22, ns = 8) {
-  const p = [],
-    i = [];
-  for (let a = 0; a <= nt; a++) {
-    const t = a / nt,
-      l = bz(L, t),
-      r = bz(R, t);
-    for (let b = 0; b <= ns; b++) {
-      const s = b / ns;
-      p.push(
-        l[0] + (r[0] - l[0]) * s,
-        l[1] +
-          (r[1] - l[1]) * s -
-          cup * Math.sin(Math.PI * s) * Math.sin(Math.PI * t),
-        l[2] + (r[2] - l[2]) * s,
-      );
-    }
-  }
-  grid(nt, ns, i);
-  return pack(p, normals(p, i), i);
 }
 
 /**
@@ -956,12 +859,9 @@ export {
   zEllipsoid,
   frustum,
   zCylinder,
-  zTorus,
-  paraboloid,
   zBox,
   bz,
   zTube,
-  zLeaf,
   prism,
   jacket,
   ragged,
