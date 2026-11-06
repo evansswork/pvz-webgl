@@ -8,7 +8,7 @@
  */
 
 import { m4, M, sub, nrm, tr, inv, segBetween as seg, axisRot, cr, dt, persp, look, ortho } from "../../core/math.js";
-import { pack, grid, normals, zEllipsoid as ellipsoid, frustum, zCylinder as cylinder, zTorus as torus, paraboloid, zBox as box, bz, zTube as tube, zLeaf as leaf, prism, jacket, ragged } from "../../core/geometry.js";
+import { pack, grid, normals, zEllipsoid as ellipsoid, frustum, zCylinder as cylinder, zCone as cone, zTorus as torus, paraboloid, zBox as box, bz, zTube as tube, zLeaf as leaf, prism, jacket, ragged } from "../../core/geometry.js";
 import { ZombiePart, BoneNode } from "./ZombieNode.js";
 
 export function createZombieScene(gl) {
@@ -767,23 +767,23 @@ function add(charIndex, m, Mx, t, c, bone) {
           //{x:-.115,z:.795,w:.032,h:.05, d:.026,r:.18},
           //{x:-.068,z:.815,w:.036,h:.036,d:.028,r:-.06},
           { x: -0.022, z: 0.825, w: 0.034, h: 0.055, d: 0.03, r: 0.08 },
-          //{x:.028, z:.82, w:.032,h:.032,d:.027,r:-.1},
+          { x: 0.032, z: 0.818, w: 0.032, h: 0.048, d: 0.027, r: -0.06, cone: true },
           //{x:.075, z:.805,w:.035,h:.048,d:.027,r:.12},
           { x: 0.118, z: 0.785, w: 0.03, h: 0.034, d: 0.024, r: -0.16 },
         ];
         for (const t of upperTeeth)
           add(
             charIndex,
-            mesh(box(t.w, t.h, t.d)),
+            mesh(t.cone ? cone(t.w / 2, t.h, 18, true) : box(t.w, t.h, t.d)),
             M(m4.T(t.x, 1.726 - t.h / 2, t.z), m4.Z(t.r)),
-            "box",
+            t.cone ? "cone" : "box",
             RC.tooth,
             "head",
           );
         const lowerTeeth = [
           //{x:-.125,z:.78, w:.03, h:.038,d:.024,r:-.12},
           { x: -0.078, z: 0.805, w: 0.034, h: 0.055, d: 0.028, r: 0.1 },
-          { x: -0.03, z: 0.818, w: 0.03, h: 0.03, d: 0.026, r: -0.05 },
+          { x: -0.03, z: 0.818, w: 0.03, h: 0.038, d: 0.026, r: -0.05, cone: true },
           //{x:.02,  z:.822,w:.036,h:.05, d:.029,r:.09},
           { x: 0.07, z: 0.802, w: 0.032, h: 0.034, d: 0.026, r: -0.14 },
           { x: 0.115, z: 0.782, w: 0.029, h: 0.044, d: 0.023, r: 0.15 },
@@ -791,9 +791,9 @@ function add(charIndex, m, Mx, t, c, bone) {
         for (const t of lowerTeeth)
           add(
             charIndex,
-            mesh(box(t.w, t.h, t.d)),
+            mesh(t.cone ? cone(t.w / 2, t.h, 18, false) : box(t.w, t.h, t.d)),
             M(m4.T(t.x, 1.686 + t.h / 2, t.z), m4.Z(t.r)),
-            "box",
+            t.cone ? "cone" : "box",
             RC.tooth,
             "jaw",
           );

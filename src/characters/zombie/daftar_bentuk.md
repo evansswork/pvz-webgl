@@ -10,8 +10,8 @@ Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang di
 | :--- | :--- | :--- |
 | **Quadric (3 Jenis)** | **Ellipsoid** | Kepala (*textured*), bola mata, pupil, lubang hidung, kerutan dahi, bibir atas & bawah (*curved*), rongga mulut, lidah, otot dagu, kancing jas, lipatan lengan jas, sabuk, pinggul celana, sendi bahu, sendi siku, telapak tangan, sendi jari (*knuckle*), ujung jari, kuku, sendi pinggul, sendi lutut, sepatu, dan piringan alas (*disc*). |
 | | **Cylinder** | Leher, betis kaki, ruas-ruas jari, dan urat-urat mata (*bloodshot veins*). |
-| | **Cone / Truncated Cone** | Lengan jas atas, lengan jas bawah, potongan paha celana, dan potongan celana melorot kaki kanan. |
-| **Objek Lain** | **Box** | Sol sepatu, kepala gesper sabuk, saku/kantong jas, motif garis-garis dasi, dan gigi. |
+| | **Cone / Truncated Cone** | Gigi taring (*cone* penuh: 1 di rahang atas menghadap bawah, 1 di rahang bawah nomor 2 dari kiri menghadap atas), lengan jas atas, lengan jas bawah, potongan paha celana, dan potongan celana melorot kaki kanan. |
+| **Objek Lain** | **Box** | Sol sepatu, kepala gesper sabuk, saku/kantong jas, motif garis-garis dasi, dan gigi seri/geraham. |
 | | **Mesh Segitiga** | Jas compang-camping (`jacket`), kerah jas (`prism`), simpul & badan dasi (`prism`), serta tepi sobekan celana bergerigi (`ragged`). |
 | **Kurva 3D** | **Kurva Bézier 3D (Tube)** | Helai rambut (5 helai dengan ayunan animasi) dan struktur lengkung rahang bawah (mandibula huruf-U). |
 
@@ -36,9 +36,9 @@ Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang di
   * **Bibir Bawah**: *Curved ellipsoid* melengkung ke atas yang menempel pada tulang rahang.
   * **Rongga Mulut**: *Ellipsoid* merah tua di bagian dalam kepala.
   * **Lidah**: *Ellipsoid* pipih merah muda yang terletak di dalam rahang.
-* **Gigi**: **6 buah Box kecil** bertaring tidak rata (*snaggletooth*) dengan rotasi Z dan ukuran acak:
-  * 2 gigi atas (menempel pada kepala).
-  * 4 gigi bawah (menempel pada rahang dan ikut bergerak saat animasi mulut).
+* **Gigi**: **7 buah gigi** (kombinasi **5 Box** & **2 Cone penuh**) yang tidak rata (*snaggletooth*) dengan rotasi Z dan ukuran acak:
+  * 3 gigi atas (menempel pada kepala): 1 *Cone* meruncing ke bawah + 2 *Box*.
+  * 4 gigi bawah (menempel pada rahang dan ikut bergerak saat animasi mulut): gigi nomor 2 dari kiri berupa *Cone* meruncing ke atas + 3 *Box*.
 * **Rambut**: **5 helai aktif** *mesh tube* tipis yang disapu mengikuti **Kurva Bézier 3D** di atas ubun-ubun kepala (masing-masing bergerak melambai dengan beda fase).
 
 ---

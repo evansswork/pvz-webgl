@@ -556,6 +556,51 @@ function frustum(r1, r2, sl = 24, caps = true) {
 const zCylinder = (r, sl, caps) => frustum(r, r, sl, caps);
 
 /**
+ * QUADRIC: CONE (Kerucut Biasa / Penuh)
+ * Menghasilkan kerucut penuh berpusat di titik asal (y dari -h/2 sampai +h/2)
+ * dengan radius alas r, tinggi h, dan ujung lancip (radius 0).
+ * Jika down = false (default), ujung lancip menghadap ke atas (+Y).
+ * Jika down = true, ujung lancip menghadap ke bawah (-Y).
+ * @param {number} r - Radius lingkaran alas kerucut
+ * @param {number} h - Tinggi kerucut
+ * @param {number} sl - Segmen melingkar
+ * @param {boolean} down - true jika kerucut meruncing ke bawah (-Y)
+ * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
+ */
+export function zCone(r, h = 1, sl = 18, down = false) {
+  const p = [],
+    n = [],
+    i = [],
+    r1 = down ? 0 : r,
+    r2 = down ? r : 0,
+    nySlope = down ? -r : r;
+  for (let a = 0; a <= 1; a++)
+    for (let b = 0; b <= sl; b++) {
+      const th = (2 * Math.PI * b) / sl,
+        rad = a ? r2 : r1,
+        y = a ? h / 2 : -h / 2;
+      p.push(rad * Math.cos(th), y, rad * Math.sin(th));
+      n.push(...nrm([h * Math.cos(th), nySlope, h * Math.sin(th)]));
+    }
+  grid(1, sl, i);
+  const capY = down ? h / 2 : -h / 2,
+    capNy = down ? 1 : -1,
+    c = p.length / 3;
+  p.push(0, capY, 0);
+  n.push(0, capNy, 0);
+  for (let b = 0; b <= sl; b++) {
+    const th = (2 * Math.PI * b) / sl;
+    p.push(r * Math.cos(th), capY, r * Math.sin(th));
+    n.push(0, capNy, 0);
+  }
+  for (let b = 0; b < sl; b++)
+    capNy > 0
+      ? i.push(c, c + 2 + b, c + 1 + b)
+      : i.push(c, c + 1 + b, c + 2 + b);
+  return pack(p, n, i);
+}
+
+/**
  * BUKAN QUADRIC: TORUS (Cincin Donat)
  * Menghasilkan bentuk donat berpusat di sumbu Y dengan radius utama R dan radius tabung r.
  * Digunakan untuk: kerah baju, manset lengan, dan lubang bibir zombie.
