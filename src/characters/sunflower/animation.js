@@ -26,7 +26,7 @@ export function sfMakePose() {
     lowerRot: [0, 0, 0], upperRot: [0, 0, 0], neckRot: [0, 0, 0],
     faceOffset: [0, 0, 0],                    // TRANSLATE wajah (ruang leher)
     faceScale: 1, glow: 0,
-    petalRot: Array.from({ length: 16 }, () => [0, 0]),
+    petalRot: Array(16).fill(0),               // rotasi X tiap kelopak
     petalScale: Array(16).fill(1),
     leafRot: Array(4).fill(0),
     leafFlap: Array(4).fill(0),               // ARBITRARY: sudut engsel tiap daun (rad)
@@ -39,21 +39,21 @@ export function sfIdle(pose, t) {
   pose.bodyScale[1] *= 1 + 0.018 * Math.sin(t * 2.6);
   pose.upperRot[0] += 0.03 * Math.sin(t * 1.3 + 0.6);
   pose.neckRot[0] += 0.03 * Math.sin(t * 1.3 + 1.2);
-  for (let i = 0; i < 16; i++) pose.petalRot[i][0] += 0.04 * Math.sin(t * 2.2 + i * 0.7);
+  for (let i = 0; i < 16; i++) pose.petalRot[i] += 0.04 * Math.sin(t * 2.2 + i * 0.7);
 
   // ARBITRARY: daun naik-turun, hembusan angin datang-pergi
   const gust = 0.65 + 0.35 * Math.sin(t * 0.45);
   for (let i = 0; i < 4; i++) pose.leafFlap[i] += gust * 0.17 * Math.sin(t * 1.9 + i * 1.35);
 
-  // SCALING: kedip tiap 3.2 dtk, tiap siklus ke-3 kedip dua kali
+  // SCALING: kedip pelan (0.35 dtk) tiap 3.2 dtk supaya terekam video, tiap siklus ke-3 kedip dua kali
   const cyc = Math.floor(t / 3.2), u = t - cyc * 3.2;
-  const blink = (a) => (u > a && u < a + 0.16 ? Math.sin(((u - a) / 0.16) * Math.PI) : 0);
-  const b = Math.max(blink(2.9), cyc % 3 === 2 ? blink(2.62) : 0);
+  const blink = (a) => (u > a && u < a + 0.35 ? Math.sin(((u - a) / 0.35) * Math.PI) : 0);
+  const b = Math.max(blink(2.7), cyc % 3 === 2 ? blink(2.2) : 0);
   pose.eyeScaleY *= 1 - 0.9 * b;
 }
 
 export const SF_ACTIONS = {
-  /* tumbuh dari benih (dipakai viewer saat dibuka) */
+  /* tumbuh dari benih (tombol G di scene utama) */
   grow: {
     dur: 2.8,
     apply(p, pose) {
@@ -63,7 +63,7 @@ export const SF_ACTIONS = {
       for (let i = 0; i < 16; i++) {
         const k = (i % 2 ? 8 + (i >> 1) : i >> 1) * 0.022;
         pose.petalScale[i] *= Math.max(0.001, Ease.outBack(seg(p, 0.42 + k, 0.72 + k)));
-        pose.petalRot[i][0] += 1.2 * (1 - Ease.outCubic(seg(p, 0.42 + k, 0.8 + k)));
+        pose.petalRot[i] += 1.2 * (1 - Ease.outCubic(seg(p, 0.42 + k, 0.8 + k)));
       }
       for (let i = 0; i < 4; i++) pose.leafRot[i] += 0.9 * (1 - Ease.outBack(seg(p, 0.1 + i * 0.05, 0.5 + i * 0.05)));
     },
@@ -74,7 +74,7 @@ export const SF_ACTIONS = {
      Sun sendiri bergerak: naik dari kepala → melayang → jatuh ke rumput.   */
   sun: {
     dur: 2.0,
-    apply(p, pose, ctx, st, world) {
+    apply(p, pose, ctx, world) {
       const t = p * 2.0;
       const back = Ease.inOutSine(seg(t, 0, 0.45));                       // mundur
       const push = Ease.outBack(seg(t, 0.45, 0.7));                       // maju cepat
@@ -84,7 +84,7 @@ export const SF_ACTIONS = {
       pose.faceOffset[1] += 0.03 * Math.sin(Math.PI * seg(t, 0.4, 1.2));
       pose.glow += 0.35 * Math.sin(Math.PI * seg(t, 0.3, 1.0));
       pose.neckRot[0] += 0.10 * back * (1 - push) - 0.06 * Math.sin(Math.PI * seg(t, 0.45, 1.1));
-      for (let i = 0; i < 16; i++) pose.petalRot[i][0] += 0.25 * Math.sin(Math.PI * seg(t, 0.45, 1.0));
+      for (let i = 0; i < 16; i++) pose.petalRot[i] += 0.25 * Math.sin(Math.PI * seg(t, 0.45, 1.0));
       if (t >= 0.55 && !ctx.spawned) { ctx.spawned = true; world.spawnSun(); }
     },
   },
@@ -98,7 +98,7 @@ export const SF_ACTIONS = {
       const a = Math.sin(p * Math.PI * 4);                                 // 2 kali bolak-balik
       pose.neckRot[2] += w * 0.38 * a;
       pose.upperRot[2] += -w * 0.06 * a;                                   // batang sedikit melawan (seimbang)
-      for (let i = 0; i < 16; i++) pose.petalRot[i][0] += w * 0.12 * Math.sin(p * Math.PI * 4 - 0.6); // kelopak telat ikut
+      for (let i = 0; i < 16; i++) pose.petalRot[i] += w * 0.12 * Math.sin(p * Math.PI * 4 - 0.6); // kelopak telat ikut
     },
   },
 };
@@ -117,8 +117,7 @@ export function applySunflowerPose(sf, pose) {
   sf.face.position = V3.add(sf.face.position, pose.faceOffset);      // TRANSLATE
   sf.face.scale = [pose.faceScale, pose.faceScale, pose.faceScale];
   sf.petals.forEach((pt, i) => {
-    pt.rotation[0] += pose.petalRot[i][0];
-    pt.rotation[2] += pose.petalRot[i][1];
+    pt.rotation[0] += pose.petalRot[i];
     const s = pose.petalScale[i]; pt.scale = [s, s, s];
   });
   sf.leaves.forEach((lf, i) => { lf.rotation[2] += pose.leafRot[i]; });

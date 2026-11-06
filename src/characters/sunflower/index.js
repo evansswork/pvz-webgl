@@ -1,5 +1,5 @@
 /* =========================================================================
-   sunflower/index.js — Spesifikasi karakter Sunflower (dipakai viewer & scene utama)
+   sunflower/index.js — Spesifikasi karakter Sunflower (dipakai scene utama lewat cast.js)
    ========================================================================= */
 import { V3, Ease } from '../../core/math.js';
 import { Animator } from '../../core/animator.js';
@@ -8,17 +8,6 @@ import { buildSunflower } from './model.js';
 import { SF_ACTIONS, sfIdle, sfMakePose, applySunflowerPose } from './animation.js';
 
 export default {
-  hud: {
-    title: 'Sunflower',
-    desc: 'Kurva Bézier, ellipsoid, cylinder dan elliptic paraboloid, dirender dengan WebGL murni.',
-    accent: ['#ffd23f', '#f2a516'],
-    regrow: ['grow', 'Tumbuh ulang'],
-    dock: [['sun', 'Keluarkan Sun', 'Translate'], ['sway', 'Goyang Kepala', 'Rotate']],
-    auto: 'Otomatis: daun bergerak (arbitrary axis) · mata berkedip (scaling)',
-  },
-  cam: { yaw: 0.35, pitch: 0.16, dist: 5.2, ty: 1.2 },
-  keys: { '1': 'sun', '2': 'sway', g: 'grow' },
-
   build({ gl, fx }) {
     const sf = buildSunflower(gl);
     const sunAssets = buildSunAssets(gl);
@@ -31,7 +20,7 @@ export default {
         suns.push({ n, t: 0, from, to }); fx.add(n);
       }
     };
-    const anim = new Animator({ actions: SF_ACTIONS, idle: sfIdle, makePose: sfMakePose, world, state: {} });
+    const anim = new Animator({ actions: SF_ACTIONS, idle: sfIdle, makePose: sfMakePose, world });
 
     function updateSuns(dt, time, camEye) {
       for (let i = suns.length - 1; i >= 0; i--) {
@@ -60,31 +49,7 @@ export default {
         updateSuns(dt, time, camEye);
       },
       trigger: (n) => anim.trigger(n),
-      isActive: (n) => anim.isActive(n),
-      reset() { anim.clear(); },
-      focusX: () => 0,
       axisInfo: () => sf.flapAxis,
     };
-  },
-  onStart: (ch) => ch.trigger('grow'),
-
-  story: {
-    length: 20,
-    events: [[0.3, 'grow'], [5.0, 'sun'], [9.5, 'sway'], [14.0, 'sun']],
-    cams: [
-      [0, { yaw: 0.6, pitch: 0.02, dist: 3.0, ty: 0.75 }],
-      [3.0, { yaw: 0.9, pitch: 0.35, dist: 3.4, ty: 0.4 }],     // daun bergerak & kedip
-      [4.8, { yaw: 0.2, pitch: 0.12, dist: 4.6, ty: 1.3 }],
-      [9.2, { yaw: -0.3, pitch: 0.08, dist: 3.4, ty: 1.45 }],
-      [13.6, { yaw: 0.3, pitch: 0.1, dist: 5.0, ty: 1.3 }],
-      [17.0, { yaw: 0.0, pitch: 0.1, dist: 5.6, ty: 1.85 }],
-      [20, { yaw: 0.12, pitch: 0.1, dist: 5.4, ty: 1.85 }],
-    ],
-    captions: [
-      [0.4, 4.6, 'Di halaman depan, sebuah benih tumbuh…'],
-      [5.0, 9.0, 'Dan menghasilkan sun untuk bertahan!'],
-      [9.6, 13.0, 'Ceria. Siap jaga halaman.'],
-      [17.0, 20, '<b>SUNFLOWER</b><span>Plants vs. Zombies</span>'],
-    ],
   },
 };
