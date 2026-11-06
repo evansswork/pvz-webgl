@@ -567,19 +567,22 @@ const zCylinder = (r, sl, caps) => frustum(r, r, sl, caps);
  * @param {boolean} down - true jika kerucut meruncing ke bawah (-Y)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
-export function zCone(r, h = 1, sl = 18, down = false) {
+export function zCone(r, h = 1, sl = 18, down = false, rz = r) {
   const p = [],
     n = [],
     i = [],
-    r1 = down ? 0 : r,
-    r2 = down ? r : 0,
+    r1x = down ? 0 : r,
+    r2x = down ? r : 0,
+    r1z = down ? 0 : rz,
+    r2z = down ? rz : 0,
     nySlope = down ? -r : r;
   for (let a = 0; a <= 1; a++)
     for (let b = 0; b <= sl; b++) {
       const th = (2 * Math.PI * b) / sl,
-        rad = a ? r2 : r1,
+        radX = a ? r2x : r1x,
+        radZ = a ? r2z : r1z,
         y = a ? h / 2 : -h / 2;
-      p.push(rad * Math.cos(th), y, rad * Math.sin(th));
+      p.push(radX * Math.cos(th), y, radZ * Math.sin(th));
       n.push(...nrm([h * Math.cos(th), nySlope, h * Math.sin(th)]));
     }
   grid(1, sl, i);
@@ -590,7 +593,7 @@ export function zCone(r, h = 1, sl = 18, down = false) {
   n.push(0, capNy, 0);
   for (let b = 0; b <= sl; b++) {
     const th = (2 * Math.PI * b) / sl;
-    p.push(r * Math.cos(th), capY, r * Math.sin(th));
+    p.push(r * Math.cos(th), capY, rz * Math.sin(th));
     n.push(0, capNy, 0);
   }
   for (let b = 0; b < sl; b++)

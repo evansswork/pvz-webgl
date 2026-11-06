@@ -1,6 +1,6 @@
 # Daftar Lengkap Bentuk Geometri Karakter Zombie
 
-Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang diimplementasikan dalam [`gabungan/zombie/main.js`](file:///D:/Users/Natan/3-university/PCU/1-academic/Subject/semester-5/grafkom/tugas/gabungan/zombie/main.js) dan [`gabungan/zombie/zombieScene.js`](file:///D:/Users/Natan/3-university/PCU/1-academic/Subject/semester-5/grafkom/tugas/gabungan/zombie/zombieScene.js).
+Dokumen ini merangkum seluruh pemodelan geometri 3D pada karakter Zombie yang diimplementasikan dalam [`src/characters/zombie/zombieScene.js`](file:///D:/Users/Natan/3-university/PCU/1-academic/Subject/semester-5/grafkom/tugas_git_gabungan/pvz-webgl/src/characters/zombie/zombieScene.js).
 
 ---
 

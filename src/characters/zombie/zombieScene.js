@@ -766,15 +766,15 @@ function add(charIndex, m, Mx, t, c, bone) {
         const upperTeeth = [
           //{x:-.115,z:.795,w:.032,h:.05, d:.026,r:.18},
           //{x:-.068,z:.815,w:.036,h:.036,d:.028,r:-.06},
-          { x: -0.022, z: 0.825, w: 0.034, h: 0.055, d: 0.03, r: 0.08 },
-          { x: 0.032, z: 0.818, w: 0.032, h: 0.048, d: 0.027, r: -0.06, cone: true },
+          { x: -0.022, z: 0.800, w: 0.034, h: 0.055, d: 0.01, r: 0.08 },
+          { x: 0.032, z: 0.80, w: 0.032, h: 0.048, d: 0.024, r: -0.06, cone: true },
           //{x:.075, z:.805,w:.035,h:.048,d:.027,r:.12},
-          { x: 0.118, z: 0.785, w: 0.03, h: 0.034, d: 0.024, r: -0.16 },
+          { x: 0.08, z: 0.78, w: 0.03, h: 0.034, d: 0.02, r: -0.16 },
         ];
         for (const t of upperTeeth)
           add(
             charIndex,
-            mesh(t.cone ? cone(t.w / 2, t.h, 18, true) : box(t.w, t.h, t.d)),
+            mesh(t.cone ? cone(t.w / 2, t.h, 18, true, t.d / 2) : box(t.w, t.h, t.d)),
             M(m4.T(t.x, 1.726 - t.h / 2, t.z), m4.Z(t.r)),
             t.cone ? "cone" : "box",
             RC.tooth,
@@ -782,16 +782,16 @@ function add(charIndex, m, Mx, t, c, bone) {
           );
         const lowerTeeth = [
           //{x:-.125,z:.78, w:.03, h:.038,d:.024,r:-.12},
-          { x: -0.078, z: 0.805, w: 0.034, h: 0.055, d: 0.028, r: 0.1 },
-          { x: -0.03, z: 0.818, w: 0.03, h: 0.038, d: 0.026, r: -0.05, cone: true },
+          { x: -0.078, z: 0.805, w: 0.034, h: 0.055, d: 0.01, r: 0.1 },
+          { x: -0.03, z: 0.818, w: 0.03, h: 0.038, d: 0.024, r: -0.05, cone: true },
           //{x:.02,  z:.822,w:.036,h:.05, d:.029,r:.09},
-          { x: 0.07, z: 0.802, w: 0.032, h: 0.034, d: 0.026, r: -0.14 },
-          { x: 0.115, z: 0.782, w: 0.029, h: 0.044, d: 0.023, r: 0.15 },
+          { x: 0.07, z: 0.802, w: 0.032, h: 0.034, d: 0.01, r: -0.14 },
+          { x: 0.115, z: 0.782, w: 0.029, h: 0.044, d: 0.01, r: 0.15 },
         ];
         for (const t of lowerTeeth)
           add(
             charIndex,
-            mesh(t.cone ? cone(t.w / 2, t.h, 18, false) : box(t.w, t.h, t.d)),
+            mesh(t.cone ? cone(t.w / 2, t.h, 18, false, t.d / 2) : box(t.w, t.h, t.d)),
             M(m4.T(t.x, 1.686 + t.h / 2, t.z), m4.Z(t.r)),
             t.cone ? "cone" : "box",
             RC.tooth,
