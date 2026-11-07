@@ -10,9 +10,6 @@
 import { buildZombie } from "./model.js";
 import { makeZombieAnimator, applyZombiePose } from "./animation.js";
 
-import { buildZombie } from "./model.js";
-import { makeZombieAnimator, applyZombiePose } from "./animation.js";
-
 /**
  * Menginisialisasi scene karakter zombie lengkap dengan kompilasi shader WebGL,
  * mapping uniform/atribut, perakitan model pohon tulang hierarki, dan fungsi kontrol per-frame.
