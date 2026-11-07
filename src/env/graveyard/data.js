@@ -1,10 +1,58 @@
 // =====================================================================
-//  DATA OBJEK GRAVEYARD
+//  DATA OBJEK GRAVEYARD (Database Koordinat & Spesifikasi Objek Kuburan)
 // =====================================================================
-//  1. Objek statis batu di dalam kuburan (Cube.001 s/d Cube.064).
-//  2. Tiang utama (di pintu masuk & 4 pojok) serta tembok batu bawah
-//     polos utuh (tanpa tiang tengah dan tanpa pagar besi)
-//     dibangkitkan di bagian bawah file.
+//  File ini mendefinisikan array statis `OBJEK_GRAVEYARD` yang berisi seluruh
+//  komponen 3D arsitektur kuburan:
+//    1. Objek Statis Batu (Cube.001 s/d Cube.064):
+//       - Cube.001 s/d Cube.018: 18 Balok Batu Nisan & Alas Makam.
+//       - Cube.019 s/d Cube.032: 14 Balok Pelat Penutup (Cover) & Bingkai (Rim) Makam.
+//       - Cube.033 s/d Cube.064: 32 Kotak Lempeng Batu Jalan Setapak.
+//    2. Tiang Utama Batu (6 Tiang: 2 gerbang masuk + 4 sudut pojok perimeter).
+//    3. Tembok Batu Polos Utuh (5 Rentang perimeter: Depan Kiri, Depan Kanan,
+//       Belakang, Samping Kiri, Samping Kanan).
+//    4. 1 Pohon Tua Angker (15 segmen batang silinder miring, dahan, ranting kerucut,
+//       dan kanopi daun ellipsoid).
+//
+//  ---------------------------------------------------------------------
+//  STRUKTUR DATA PER OBJEK & KEGUNAAN PARAMETERNYA:
+//  ---------------------------------------------------------------------
+//  Tiap objek di dalam `OBJEK_GRAVEYARD` memiliki properti seragam:
+//  - `nama`: String pengenal unik objek (misal: "Cube.001", "TiangUtama.1", "Pohon.BatangBawah").
+//            Digunakan oleh `gravestone.js` untuk membedakan nisan vs pelat rim/cover,
+//            serta untuk debugging.
+//  - `jenis`: Jenis bentuk dasar primitif ("balok", "silinder", "kerucut", "ellipsoid", "plane").
+//            Digunakan oleh `graveyardScene.js` (pada drawShapes) untuk memetakan jenis objek
+//            ke offset rentang buffer Unified Mesh (UM.ranges):
+//            0 = box proksi / balok, 1 = silinder, 2 = kerucut, 3 = torus, 4 = ellipsoid.
+//  - `matrix`: Matriks Transformasi Affine 4x4 berbentuk flat array Float/Number berukuran 16 elemen
+//              dengan format Column-Major:
+//              [ m0,  m1,  m2,  0,   // Kolom 1: Basis sumbu X lokal (skala & rotasi X)
+//                m4,  m5,  m6,  0,   // Kolom 2: Basis sumbu Y lokal (skala & rotasi Y)
+//                m8,  m9,  m10, 0,   // Kolom 3: Basis sumbu Z lokal (skala & rotasi Z)
+//                tx,  ty,  tz,  1 ]  // Kolom 4: Translasi posisi objek di ruang dunia (X, Y, Z)
+//            * KEGUNAAN:
+//              1. Di Vertex Shader (`graveyardScene.js`): Di-upload ke uniform `uM`.
+//                 Mengalikan posisi verteks lokal sehingga objek berada pada posisi, orientasi rotasi,
+//                 dan dimensi skala dunia yang tepat: `vP = (uM * vec4(p, 1.0)).xyz`.
+//              2. Di `gravestone.js` (`buildBoxMesh`): Elemen skala diekstrak (`Math.hypot`)
+//                 bersama elemen translasi Y (`m[13]`) untuk menghitung ekstensi penanaman nisan ke tanah dasar.
+//  - `pusat`: Vektor 3D [cx, cy, cz] yang menentukan pergeseran offset titik tengah/pivot lokal objek.
+//            * KEGUNAAN:
+//              Di Vertex Shader (`graveyardScene.js`), di-upload ke uniform `uC` dan ditambahkan
+//              ke koordinat verteks: `p = (uR * vec4(aP * uH, 1.0)).xyz + uC;`.
+//              Jika [0, 0, 0], titik tengah objek berada tepat di pivot matriksnya.
+//  - `ukuran_proksi`: Vektor 3D [hx, hy, hz] yang menentukan setengah ukuran dimensi (bounding half-size / radius).
+//            * KEGUNAAN:
+//              1. Di Vertex Shader (`graveyardScene.js`): Di-upload ke uniform `uH` untuk
+//                 mengalikan verteks primitif satuan [-1, 1] menjadi ukuran proksi yang diinginkan: `aP * uH`.
+//              2. Di `gravestone.js` (`buildBoxMesh`): Menentukan batas kotak AABB (`-hs[0] s/d hs[0]`)
+//                 saat merakit 12 segitiga balok nisan/makam.
+//  - `warna`: Vektor RGB [r, g, b] ternormalisasi (rentang 0.0 s/d 1.0).
+//            * KEGUNAAN:
+//              Di Fragment Shader (`graveyardScene.js`): Di-upload ke uniform `uCol`.
+//              Menjadi warna dasar (`base`) yang kemudian dimodifikasi oleh fungsi `stoneAlbedo`
+//              (ditambahkan butiran pori-pori batu, bercak lapuk tua, noda air hujan, lumut hijau,
+//              dan bayangan kontak tanah).
 // =====================================================================
 
 export const OBJEK_GRAVEYARD = [
