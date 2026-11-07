@@ -11,9 +11,29 @@
 
 import { look } from "./core/math.js";
 
+/**
+ * Interpolasi linear skalar antara nilai a dan b dengan faktor bobot k.
+ * @param {number} a - Nilai awal saat k = 0.
+ * @param {number} b - Nilai target saat k = 1.
+ * @param {number} k - Faktor rasio pergeseran [0.0 - 1.0].
+ * @returns {number} Nilai transisi terinterpolasi halus.
+ */
 const lerp = (a, b, k) => a + (b - a) * k;
 
+/**
+ * Class DroneCamera
+ * Mengatur kamera bebas (Free-Fly) bergaya drone sinematik dengan peredaman inersia (smooth damping),
+ * mode autopilot orbit mengelilingi objek fokus, dan preset sudut pandang sinematik.
+ */
 export class DroneCamera {
+  /**
+   * Konstruktor DroneCamera.
+   * @param {HTMLCanvasElement} canvas - Elemen canvas HTML tempat event pointer dan mouse scroll didaftarkan.
+   *        Mengubah canvas target memungkinkan kamera membaca interaksi kursor pada elemen canvas yang berbeda.
+   * @param {Object} [options={}] - Objek opsi konfigurasi awal:
+   * @param {Array<number>} [options.focus=[130, 40, -1490]] - Titik koordinat dunia `[x, y, z]` yang menjadi poros pusat saat mode autopilot orbit aktif.
+   *        Mengubah titik fokus ini akan memindahkan objek/area mana yang dikitari oleh drone saat tombol 'P' ditekan (misal fokus ke tanaman, zombie, atau gerbang kuburan).
+   */
   constructor(canvas, { focus = [130, 40, -1490] } = {}) {
     this.canvas = canvas;
     this.fov = 0.85;
@@ -44,6 +64,12 @@ export class DroneCamera {
     this.bindEvents();
   }
 
+  /**
+   * Memindahkan posisi dan orientasi pandang kamera secara instan ke salah satu preset sudut pandang sinematik.
+   * @param {number} i - Indeks array sudut preset yang dituju (0: halaman/tanaman, 1: panorama luas, 2: depan rumah, 3: gerbang kuburan).
+   *        Mengganti nilai integer ini akan mengubah lokasi preset target kamera dan mereset kecepatan inersia ke nol.
+   * @returns {void}
+   */
   teleport(i) {
     const p = this.presets[i % this.presets.length];
     this.preset = i % this.presets.length;
@@ -52,6 +78,11 @@ export class DroneCamera {
     this.auto = null;
   }
 
+  /**
+   * Mengaktifkan atau menonaktifkan mode autopilot orbit sinematik di sekitar titik target `focus`.
+   * Jika sedang aktif, memanggil fungsi ini akan mematikan autopilot dan mengembalikan kendali manual ke pengguna.
+   * @returns {void}
+   */
   toggleAutopilot() {
     if (this.auto) { this.auto = null; return; }
     const dx = this.pos[0] - this.focus[0], dz = this.pos[2] - this.focus[2];
@@ -63,6 +94,11 @@ export class DroneCamera {
     };
   }
 
+  /**
+   * Mendaftarkan pendengar event (event listeners) untuk mouse pointer, wheel zoom, dan keyboard control.
+   * Mengontrol navigasi drag rotasi, dorongan scroll roda mouse, tombol 'P' (autopilot), dan tombol 'V' (ganti preset).
+   * @returns {void}
+   */
   bindEvents() {
     const cv = this.canvas;
     cv.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -95,10 +131,20 @@ export class DroneCamera {
     window.addEventListener("blur", () => (this.keys = {}));
   }
 
+  /**
+   * Menghitung vektor satuan arah depan (forward unit vector) `[dx, dy, dz]` berdasarkan sudut orientasi `yaw` dan `pitch` saat ini.
+   * @returns {Array<number>} Vektor arah 3D ternormalisasi ke mana lensa kamera sedang menghadap.
+   */
   forward() {
     return [Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch)];
   }
 
+  /**
+   * Memperbarui fisika gerak, inersia peredaman kecepatan, rotasi gimbal drone, serta menghitung matriks View kamera dunia per frame.
+   * @param {number} [dt=0.016] - Delta time dalam satuan detik sejak frame sebelumnya (misal 0.016 detik untuk 60 FPS).
+   *        Mengubah nilai parameter `dt` akan mempercepat atau memperlambat respon gerak drone dan kecepatan transisi orbit autopilot.
+   * @returns {Float32Array} Matriks pandang kamera 4x4 (View Matrix) yang siap dikalikan dengan matriks proyeksi di render loop.
+   */
   update(dt = 0.016) {
     const K = this.keys;
     const manual = ["KeyW", "KeyS", "KeyA", "KeyD", "KeyE", "KeyQ", "KeyC", "Space",
@@ -157,5 +203,10 @@ export class DroneCamera {
     return look(this.eye, this.target, this.up);
   }
 
+  /**
+   * Mengambil posisi koordinat aktual titik pengamat kamera di ruang dunia 3D `[x, y, z]`.
+   * Digunakan oleh shader pencahayaan lingkungan dan karakter untuk menghitung vektor pandang serta specular dan kabut jarak jauh.
+   * @returns {Array<number>} Posisi mata pengamat kamera `[eyeX, eyeY, eyeZ]`.
+   */
   getEye() { return this.eye; }
 }

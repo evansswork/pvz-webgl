@@ -22,6 +22,12 @@
 import { NIGHT_GLSL } from "../../lighting.js";
 import { hex, sub, cross } from "../../core/math.js";
 
+/**
+ * Membangun scene 3D Jalan Raya Besar (Highway) beserta trotoar, curb, marka jalan, dan apron penghubung.
+ * @param {WebGL2RenderingContext} gl - Konteks rendering WebGL2 aktif dari canvas utama.
+ *        Mengubah parameter ini mengalihkan pembuatan buffer GPU (VBO/IBO) dan pipeline shader ke konteks WebGL target.
+ * @returns {{render: Function}} Objek scene highway dengan fungsi method `.render(...)`.
+ */
 export function createHighwayScene(gl) {
   const P = [];
   const N = [];
@@ -29,7 +35,15 @@ export function createHighwayScene(gl) {
   const TI = [];
   let vc = 0;
 
-
+  /**
+   * Menambahkan poligon sisi bidang (faces) ke dalam buffer array posisi (P), normal (N), warna (C), dan indeks segitiga (TI).
+   * Otomatis menghitung vektor normal tegak lurus bidang menggunakan cross product dua sisi segitiga.
+   * @param {string} color - String kode warna heksadesimal (misal: "#1e2024" untuk aspal, "#f0f1f5" untuk marka putih).
+   *        Mengubah kode warna ini akan mengganti warna verteks permukaan bidang tersebut.
+   * @param {Array<Array<Array<number>>>} faces - Array bidang poligon, di mana setiap bidang berisi urutan titik sudut koordinat 3D `[x, y, z]`.
+   *        Mengubah kumpulan titik ini akan mengubah bentuk bidang muka (persegi panjang, segitiga, dsb).
+   * @returns {void}
+   */
   function addFaces(color, faces) {
     const col = hex(color);
     faces.forEach((f) => {
@@ -51,6 +65,20 @@ export function createHighwayScene(gl) {
     });
   }
 
+  /**
+   * Menghasilkan geometri balok 6 sisi (box) dengan rentang sudut minimum (x0, y0, z0) hingga sudut maksimum (x1, y1, z1).
+   * @param {string} col - Kode warna heksadesimal untuk keenam sisi balok (misal: "#727780" untuk beton trotoar).
+   * @param {number} x0 - Batas koordinat minimum sumbu X (sisi kiri balok).
+   * @param {number} y0 - Batas elevasi minimum sumbu Y (alas bawah balok).
+   * @param {number} z0 - Batas koordinat minimum sumbu Z (sisi depan/selatan balok).
+   * @param {number} x1 - Batas koordinat maksimum sumbu X (sisi kanan balok).
+   *        Mengubah selisih (x1 - x0) mengatur panjang balok membentang sepanjang jalan raya.
+   * @param {number} y1 - Batas elevasi maksimum sumbu Y (permukaan atas balok).
+   *        Mengubah (y1 - y0) mengatur ketebalan atau tinggi trotoar/marka jalan.
+   * @param {number} z1 - Batas koordinat maksimum sumbu Z (sisi belakang/utara balok).
+   *        Mengubah (z1 - z0) mengatur lebar lajur jalan aspal atau trotoar pejalan kaki.
+   * @returns {void}
+   */
   function box(col, x0, y0, z0, x1, y1, z1) {
     const v = [
       [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
@@ -182,6 +210,14 @@ export function createHighwayScene(gl) {
     fragColor = vec4(col, 1.0);
   }`;
 
+  /**
+   * Mengompilasi kode sumber GLSL shader untuk scene jalan raya.
+   * @param {number} type - Jenis shader: `gl.VERTEX_SHADER` atau `gl.FRAGMENT_SHADER`.
+   *        Mengubah parameter ini menentukan apakah kode GLSL dikompilasi untuk pemrosesan transformasi posisi atau fragment shading warna.
+   * @param {string} source - String kode sumber GLSL shader.
+   *        Mengubah kode sumber shader akan memodifikasi cara verteks diproyeksikan atau formula pencahayaan malam/kabut di aspal.
+   * @returns {WebGLShader} Objek WebGLShader yang telah berhasil dikompilasi.
+   */
   function compileShader(type, source) {
     const s = gl.createShader(type);
     gl.shaderSource(s, source);
@@ -229,6 +265,17 @@ export function createHighwayScene(gl) {
 
   gl.bindVertexArray(null);
 
+  /**
+   * Menggambar jalan raya, trotoar, marka jalan, dan apron ke layar per frame render.
+   * @param {Float32Array|Array<number>} VP - Matriks View-Projection $P \times V$ dari kamera aktif.
+   *        Mengubah nilai VP akan memindahkan sudut pandang kamera atau perspektif penglihatan terhadap jalan raya.
+   * @param {Array<number>} camEye - Titik posisi kamera dunia `[x, y, z]`.
+   *        Digunakan oleh fragment shader untuk menghitung kilau pantulan bulan (sheen) di atas aspal dan kerapatan kabut malam (fog distance).
+   * @param {Object} [options={}] - Opsi render tambahan:
+   * @param {number} [options.exposure=1.4] - Pengali eksposur pencahayaan malam.
+   *        Mengubah nilai ini akan meningkatkan atau meredupkan intensitas pencahayaan sebelum masuk ke tone mapping.
+   * @returns {void}
+   */
   function render(VP, camEye, options = {}) {
     const { exposure = 1.4 } = options;
 

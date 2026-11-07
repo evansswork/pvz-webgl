@@ -83,6 +83,19 @@ void main(){
   gl_FragColor = vec4(finish(col, fog), a);
 }`;
 
+/**
+ * Mengompilasi dan me-link vertex shader serta fragment shader menjadi program WebGL,
+ * sekaligus mengumpulkan lokasi attribute dan uniform yang aktif.
+ *
+ * @param {WebGLRenderingContext|WebGL2RenderingContext} gl - Konteks WebGL aktif yang digunakan untuk alokasi resource GPU.
+ *        Utk mengganti: target context WebGL tempat shader program akan dicompile dan di-link.
+ * @param {string} vs - Kode sumber GLSL untuk vertex shader.
+ *        Utk mengganti: logika kalkulasi posisi vertex, transformasi matrix, dan penjalaran atribut ke fragment shader.
+ * @param {string} fs - Kode sumber GLSL untuk fragment shader.
+ *        Utk mengganti: logika pewarnaan fragmen/piksel (pencahayaan toon, bayangan, fog, rim lighting).
+ * @returns {{ p: WebGLProgram, u: Record<string, WebGLUniformLocation>, a: Record<string, number> }}
+ *          Objek berisi program GPU yang siap pakai (`p`), map lokasi uniform (`u`), dan map lokasi attribute (`a`).
+ */
 export function compile(gl, vs, fs) {
   const mk = (type, src) => {
     const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
@@ -102,6 +115,17 @@ export function compile(gl, vs, fs) {
 
 /* ------------------------------- Mesh (GPU) ------------------------------- */
 export class Mesh {
+  /**
+   * Mengunggah data geometri CPU (posisi, normal, indeks) ke VBO/IBO di memori GPU,
+   * serta menghitung normal rata-rata untuk outline tanpa retakan.
+   *
+   * @param {WebGLRenderingContext|WebGL2RenderingContext} gl - Konteks WebGL aktif tempat buffer GPU dibuat.
+   *        Utk mengganti: target canvas / konteks rendering WebGL.
+   * @param {{ pos: number[], nor: number[], idx: number[] }} geo - Objek deskripsi geometri mentah.
+   *        - `geo.pos`: array koordinat vertex [x, y, z, ...]. Utk mengganti bentuk/posisi titik 3D mesh.
+   *        - `geo.nor`: array vektor normal per vertex [nx, ny, nz, ...]. Utk mengganti arah pantulan cahaya/shading.
+   *        - `geo.idx`: array indeks segitiga faces. Utk mengganti urutan/konektivitas segitiga pembentuk permukaan.
+   */
   constructor(gl, geo) {
     this.gl = gl;
     // Normal "outline": rata-rata normal untuk vertex di posisi sama → outline tanpa retak di sambungan
@@ -124,6 +148,16 @@ export class Mesh {
     this.type = big ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
     this.count = geo.idx.length;
   }
+
+  /**
+   * Helper internal untuk membuat WebGLBuffer, mengikat (bind), dan mengisi data statis ke GPU.
+   *
+   * @param {number} t - Tipe target buffer (misal: `gl.ARRAY_BUFFER` atau `gl.ELEMENT_ARRAY_BUFFER`).
+   *        Utk mengganti: jenis data GPU (apakah data atribut vertex atau data indeks elemen segitiga).
+   * @param {BufferSource} d - TypedArray berisi data biner yang dikirim ke GPU.
+   *        Utk mengganti: isi array koordinat posisi, normal, atau indeks yang dialokasikan di VRAM.
+   * @returns {WebGLBuffer} Objek buffer WebGL yang sudah terisi data.
+   */
   _buf(t, d) { const b = this.gl.createBuffer(); this.gl.bindBuffer(t, b); this.gl.bufferData(t, d, this.gl.STATIC_DRAW); return b; }
 }
 
@@ -132,6 +166,16 @@ export class Mesh {
    world  = parent.world · local     ← anak otomatis ikut bergerak bersama induknya
    `pre`  dipakai untuk rotasi sumbu sembarang (arbitrary axis) di ruang induk.        */
 export class Node {
+  /**
+   * Membuat simpul baru dalam pohon scene graph transformasi hierarki.
+   *
+   * @param {string} name - Nama penanda atau identitas node (misal: "head", "stem", "arm").
+   *        Utk mengganti: label identifikasi node saat debugging atau pencarian node dalam hierarki.
+   * @param {Mesh|null} [mesh=null] - Geometri mesh GPU yang digambar pada node ini (bisa null jika hanya bertindak sebagai pivot/group).
+   *        Utk mengganti: bentuk 3D yang ditampilkan oleh node ini.
+   * @param {object|null} [mat=null] - Properti material visual mesh (warna, specular, shininess, outline, alpha, dll).
+   *        Utk mengganti: tampilan warna dan karakteristik shader permukaan dari node ini.
+   */
   constructor(name, mesh = null, mat = null) {
     this.name = name; this.mesh = mesh; this.mat = mat;
     this.children = []; this.parent = null;
@@ -139,35 +183,107 @@ export class Node {
     this.pre = null; this.meshMatrix = null; this.visible = true;
     this.local = M4.identity(); this.world = M4.identity();
   }
+
+  /**
+   * Menambahkan satu atau beberapa child node ke dalam node ini dan menetapkan parent-nya.
+   *
+   * @param {...Node} cs - Daftar child node yang akan dijadikan anak dari node ini.
+   *        Utk mengganti: susunan hierarki rantai pohon (child otomatis mengikuti transformasi induk).
+   * @returns {Node} Mengembalikan instance node ini (chainable).
+   */
   add(...cs) { for (const c of cs) { c.parent = this; this.children.push(c); } return this; }
+
+  /**
+   * Menghapus child node tertentu dari daftar anak node ini.
+   *
+   * @param {Node} c - Referensi instance child node yang ingin dilepaskan dari hierarki parent.
+   *        Utk mengganti: node anak mana yang dicopot dari pohon relasi transformasi.
+   */
   remove(c) { this.children = this.children.filter((x) => x !== c); c.parent = null; }
+
+  /**
+   * Menyimpan pose default awal (posisi, rotasi, skala, pre-matrix) dari node ini beserta seluruh anaknya
+   * ke dalam properti internal `base` untuk keperluan reset pose nanti.
+   */
   saveBase() { this.base = { p: [...this.position], r: [...this.rotation], s: [...this.scale], pre: this.pre }; this.children.forEach((c) => c.saveBase()); }
+
+  /**
+   * Mengembalikan transformasi node dan seluruh child-nya ke kondisi awal yang disimpan via `saveBase()`.
+   */
   resetPose() {
     if (this.base) { this.position = [...this.base.p]; this.rotation = [...this.base.r]; this.scale = [...this.base.s]; }
     this.pre = this.base ? this.base.pre : null; this.children.forEach((c) => c.resetPose());
   }
+
+  /**
+   * Menghitung matriks transformasi lokal (`this.local`) berdasarkan nilai `position`, `rotation`, `scale`,
+   * dan optional matriks `pre` (untuk rotasi arbitrary axis).
+   */
   updateLocal() {
     const [rx, ry, rz] = this.rotation;
     let m = M4.chain(M4.translation(...this.position), M4.rotationY(ry), M4.rotationX(rx), M4.rotationZ(rz), M4.scaling(...this.scale));
     if (this.pre) m = M4.multiply(this.pre, m);
     this.local = m;
   }
+
+  /**
+   * Menghitung matriks transformasi koordinat dunia (`this.world`) secara rekursif ke seluruh rantai keturunan.
+   *
+   * @param {Float32Array|number[]|null} [parentWorld=null] - Matriks world milik node induk (4x4).
+   *        Utk mengganti: basis koordinat acuan induk; jika null, matriks lokal dianggap sebagai koordinat akar dunia.
+   */
   updateWorld(parentWorld = null) {
     this.updateLocal();
     this.world = parentWorld ? M4.multiply(parentWorld, this.local) : this.local;
     for (const c of this.children) c.updateWorld(this.world);
   }
+
+  /**
+   * Melakukan traversal (pre-order depth-first) ke node ini dan seluruh keturunannya selama berstatus visible.
+   *
+   * @param {(node: Node) => void} fn - Callback fungsi yang dijalankan untuk setiap node yang dikunjungi.
+   *        Utk mengganti: aksi/operasi yang ingin dieksekusi pada tiap node (misal: pengumpulan mesh untuk di-render).
+   */
   traverse(fn) { if (!this.visible) return; fn(this); for (const c of this.children) c.traverse(fn); }
+
+  /**
+   * Mengambil posisi translasi absolut node di koordinat ruang dunia (world space).
+   *
+   * @returns {[number, number, number]} Koordinat [x, y, z] node dalam world space.
+   */
   worldPos() { return [this.world[12], this.world[13], this.world[14]]; }
 }
 
+/**
+ * Membuat objek konfigurasi material untuk shader toon dengan nilai default yang dapat di-override.
+ *
+ * @param {[number, number, number]} color - Warna dasar RGB objek dalam rentang [0, 1].
+ *        Utk mengganti: rona/warna diffuse utama pada permukaan model 3D (misal: hijau Peashooter, kuning Sunflower).
+ * @param {object} [o={}] - Objek penimpa opsi properti material.
+ *        - `o.spec`: intensitas kilauan highlight specular (default: 0.35). Utk mengganti tingkat kekilapan benda.
+ *        - `o.shin`: kehalusan/ketajaman highlight specular (default: 40). Utk mengganti fokus titik kilau.
+ *        - `o.emissive`: faktor cahaya yang dipancarkan sendiri (default: 0). Utk mengganti efek bercahaya mandiri.
+ *        - `o.alpha`: tingkat transparansi/opacity (default: 1). Utk mengganti kepekatan objek tembus pandang.
+ *        - `o.outline`: boolean aktifkan garis luar kartun (default: true). Utk mengganti ada/tidaknya outline.
+ *        - `o.outlineW`: ketebalan garis outline (default: 0.016). Utk mengganti tebal-tipisnya garis batas kartun.
+ *        - `o.shadow`: boolean apakah objek memproyeksikan bayangan planar (default: true). Utk mengganti ada/tidaknya bayangan lantai.
+ *        - `o.additive`: boolean gunakan mode blending additive (default: false). Utk mengganti mode efek cahaya glow.
+ *        - `o.xray`: boolean render selalu tembus tanpa depth test (default: false). Utk mengganti visibilitas indikator pivot.
+ *        - `o.soft`: boolean efek transparansi memudar di tepi sudut pandang (default: false).
+ * @returns {object} Objek gabungan parameter material lengkap siap pakai oleh renderer.
+ */
 export function material(color, o = {}) {
   return Object.assign({ color, spec: 0.35, shin: 40, emissive: 0, alpha: 1, outline: true, outlineW: 0.016, shadow: true, additive: false }, o);
 }
 
 /* ------------------------------- Renderer -------------------------------- */
 export class Renderer {
-  /** @param gl context WebGL milik environment (scene gabungan) */
+  /**
+   * Menginisialisasi renderer toon WebGL, mengompilasi program shader, dan menyiapkan default environment.
+   *
+   * @param {WebGLRenderingContext|WebGL2RenderingContext} gl - Konteks WebGL kanvas aktif yang dipakai untuk proses rendering bersama environment.
+   *        Utk mengganti: target konteks grafik WebGL yang menampung draw call karakter 3D.
+   */
   constructor(gl) {
     this.gl = gl;
     this.toon = compile(gl, TOON_VS, TOON_FS);
@@ -182,7 +298,15 @@ export class Renderer {
     };
   }
 
-  /** Proyeksi bayangan planar ke bidang y = groundY searah cahaya utama */
+  /**
+   * Menghitung matriks proyeksi bayangan planar (planar shadow matrix) yang meratakan geometri ke bidang lantai horizontal.
+   *
+   * @param {number} [g=this.env.groundY] - Ketinggian bidang tanah pada sumbu Y tempat bayangan jatuh.
+   *        Utk mengganti: level elevasi permukaan lantai/rumput agar bayangan tidak melayang atau tenggelam.
+   * @param {number} [eps=0.004] - Offset ketinggian epsilon kecil di atas bidang tanah.
+   *        Utk mengganti: batas toleransi z-fighting antara bayangan hitam tipis dan permukaan tanah asli.
+   * @returns {Float32Array} Matriks transformasi 4x4 untuk proyeksi bayangan miring.
+   */
   shadowMatrix(g = this.env.groundY, eps = 0.004) {
     const L = this.env.lightDir, m = M4.identity();
     m[4] = -L[0] / L[1]; m[5] = 0; m[6] = -L[2] / L[1];
@@ -190,6 +314,12 @@ export class Renderer {
     return m;
   }
 
+  /**
+   * Mengikat (bind) VBO atribut posisi, normal, outline normal, dan IBO indeks segitiga dari sebuah mesh ke pipeline WebGL.
+   *
+   * @param {Mesh} mesh - Objek mesh GPU yang VBO/IBO-nya akan dihubungkan ke shader attributes (`aPos`, `aNormal`, `aOutlineN`).
+   *        Utk mengganti: buffer geometri vertex yang sedang aktif dibaca oleh kartu grafis saat draw call.
+   */
   _bindMesh(mesh) {
     const gl = this.gl, a = this.toon.a;
     gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo); gl.enableVertexAttribArray(a.aPos); gl.vertexAttribPointer(a.aPos, 3, gl.FLOAT, false, 0, 0);
@@ -198,6 +328,20 @@ export class Renderer {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ibo);
   }
 
+  /**
+   * Mengatur nilai uniform model, material, dan mode render ke shader toon, lalu memanggil `gl.drawElements`.
+   *
+   * @param {{ mesh: Mesh, mat: object, model: Float32Array, scale: number }} item - Data objek individual yang akan dirender.
+   *        - `item.mesh`: referensi GPU buffer geometri. Utk mengganti bentuk 3D yang digambar.
+   *        - `item.mat`: properti material (warna, kilau, alpha, tebal outline). Utk mengganti atribut shader warna/tampilan.
+   *        - `item.model`: matriks model dunia akhir (stage · world · meshMatrix). Utk mengganti letak, rotasi, dan skala objek di dunia.
+   *        - `item.scale`: faktor skala stage karakter. Utk mengganti penskalaan proporsional ketebalan garis outline.
+   * @param {number} mode - Mode pass shader toon:
+   *        - `0`: Render warna objek berbayang toon reguler (lit pass).
+   *        - `1`: Render siluet tebal outline kartun (inverted hull pass).
+   *        - `2`: Render siluet bayangan planar ke tanah (shadow pass).
+   *        Utk mengganti: tahap pipeline rendering visual mana yang sedang dieksekusi pada item tersebut.
+   */
   _draw(item, mode) {
     const gl = this.gl, u = this.toon.u, m = item.mat;
     gl.uniformMatrix4fv(u.uModel, false, item.model);
@@ -211,7 +355,18 @@ export class Renderer {
     gl.drawElements(gl.TRIANGLES, item.mesh.count, item.mesh.type, 0);
   }
 
-  /** Gambar karakter (scene graph) — groups: [{ roots, stage?, scale? }] */
+  /**
+   * Menggambar seluruh scene graph karakter ke kanvas WebGL dalam beberapa pass render (bayangan, objek, outline, transparan, xray).
+   *
+   * @param {Array<{ roots: Node[], stage?: Float32Array, scale?: number }>} groups - Daftar grup karakter/objek scene graph.
+   *        - `roots`: array root Node dari karakter (hierarki model). Utk mengganti struktur tulang/pohon mesh yang digambar.
+   *        - `stage`: matriks 4x4 penempatan ruang karakter ke dunia (posisi baris/grid, rotasi hadap, skala stage). Utk mengganti letak penempatan karakter di scene.
+   *        - `scale`: faktor pengali skala ukuran karakter (default 1). Utk mengganti rasio ketebalan garis outline agar serasi dengan ukuran karakter.
+   * @param {{ view: Float32Array, proj: Float32Array, eye: [number, number, number] }} cam - Objek konfigurasi kamera aktif.
+   *        - `cam.view`: matriks View (posisi & orientasi kamera). Utk mengganti sudut pandang penglihatan penonton/kamera.
+   *        - `cam.proj`: matriks Proyeksi (perspektif/ortografis). Utk mengganti aspek rasio canvas, FOV (field of view), near/far clipping plane.
+   *        - `cam.eye`: koordinat posisi mata/kamera [x, y, z]. Utk mengganti kalkulasi vektor pandang V pada pencahayaan spekular, rim light, dan kabut (fog).
+   */
   drawScene(groups, cam) {
     const gl = this.gl, E = this.env;
 

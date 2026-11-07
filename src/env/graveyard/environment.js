@@ -14,7 +14,17 @@
 import { m4 } from "../../core/math.js";
 import { OBJEK_GRAVEYARD } from "./data.js";
 
-// helper pembuat VAO untuk 1 bidang datar (4 titik, 2 segitiga)
+/**
+ * Membuat Vertex Array Object (VAO) untuk sebuah bidang datar persegi (quad) 2 segitiga
+ * pada bentangan koordinat X dan Z tertentu pada ketinggian Y konstan.
+ * @param {WebGL2RenderingContext} gl - Konteks WebGL aktif (mengganti target alokasi buffer dan VAO)
+ * @param {number} x0 - Batas minimum koordinat X (mengubah tepi kiri bentangan bidang)
+ * @param {number} x1 - Batas maksimum koordinat X (mengubah tepi kanan bentangan bidang)
+ * @param {number} z0 - Batas minimum koordinat Z (mengubah tepi belakang bentangan bidang)
+ * @param {number} z1 - Batas maksimum koordinat Z (mengubah tepi depan bentangan bidang)
+ * @param {number} y - Elevasi/ketinggian konstan bidang pada sumbu Y (mengubah tinggi letak bidang tanah di world space)
+ * @returns {WebGLVertexArrayObject} Objek VAO yang membungkus buffer posisi vertex dan indeks segitiga quad
+ */
 function makeFlatQuadVao(gl, x0, x1, z0, z1, y) {
   const pos = new Float32Array([
     x0, y, z0,
@@ -35,6 +45,15 @@ function makeFlatQuadVao(gl, x0, x1, z0, z1, y) {
   return vao;
 }
 
+/**
+ * Menginisialisasi komponen lingkungan (environment) pemakaman/graveyard meliputi:
+ * bintang-bintang langit malam (point particles), bidang rumput luar luas (landscape),
+ * dan bidang rumput pekarangan kuburan utama (terrain).
+ * @param {WebGL2RenderingContext} gl - Konteks WebGL2 aktif (mengganti konteks grafis tempat pipeline rendering dan VAO dikonfigurasi)
+ * @param {Object} U - Objek referensi lokasi variabel uniform pada shader graveyard aktif (mengganti akses ke uM, uC, uH, uR, uA, uTerrain)
+ * @param {Float32Array|number[]} ID4 - Matriks identitas 4x4 konstan (digunakan sebagai transformasi dasar default tanpa rotasi/translasi)
+ * @returns {{ renderSky: function(number[]): void, renderLandscape: function(): void, drawTerrain: function(number): void }} Objek controller environment berisi fungsi render langit, lanskap luar, dan terrain dalam
+ */
 export function createEnvironment(gl, U, ID4) {
   // 1. Titik-titik bintang di langit (gl.POINTS)
   const numStars = 400;
@@ -65,6 +84,12 @@ export function createEnvironment(gl, U, ID4) {
   const halfZ = Math.abs(ground.matrix[6]);
   const terrainVao = makeFlatQuadVao(gl, gx - halfX, gx + halfX, gz - halfZ, gz + halfZ, baseY);
 
+  /**
+   * Merender partikel titik-titik bintang di kubah langit malam (gl.POINTS).
+   * Posisi bintang ditranslasikan mengikuti posisi kamera horizontal (X & Z)
+   * agar kubah bintang tampak berada pada jarak tak terhingga (skybox illusion).
+   * @param {number[]|[number, number, number]} camEye - Vektor koordinat posisi kamera pengamat `[x, y, z]` di ruang dunia (mengubah pusat translasi kubah bintang agar selalu mengikuti posisi kamera)
+   */
   function renderSky(camEye) {
     gl.bindVertexArray(skyVao);
     gl.uniformMatrix4fv(U.uM, false, m4.T(camEye[0], 0, camEye[2]));
@@ -80,6 +105,9 @@ export function createEnvironment(gl, U, ID4) {
     gl.bindVertexArray(null);
   }
 
+  /**
+   * Merender bidang tanah rumput luar perimeter kuburan berukuran sangat luas (flat grass plane).
+   */
   function renderLandscape() {
     gl.bindVertexArray(landVao);
     gl.uniformMatrix4fv(U.uM, false, ID4);
@@ -93,6 +121,10 @@ export function createEnvironment(gl, U, ID4) {
     gl.bindVertexArray(null);
   }
 
+  /**
+   * Merender bidang tanah rumput utama di dalam batas kuburan (terrain plane).
+   * @param {number} alpha - Nilai transparansi/opacity tanah dari 0.0 (transparan penuh) hingga 1.0 (pekat/solid) (mengubah tingkat kepekatan rendering tanah, misal saat efek fading transisi)
+   */
   function drawTerrain(alpha) {
     gl.bindVertexArray(terrainVao);
     gl.uniformMatrix4fv(U.uM, false, ID4);

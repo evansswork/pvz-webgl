@@ -11,19 +11,43 @@ import { m4, M, segBetween as seg } from "../../core/math.js";
 import { pack, grid, normals, zEllipsoid as ellipsoid, frustum, zCylinder as cylinder, zCone as cone, zBox as box, bz, zTube as tube, prism, jacket, ragged } from "../../core/geometry.js";
 import { ZombiePart, BoneNode } from "./ZombieNode.js";
 
-/** Bangun model Zombie dan upload ke GPU. Return: { bones, getBone } */
+/**
+ * Membangun struktur hierarki 3D model Zombie (tulang/BoneNode, geometri bagian tubuh, dan material),
+ * lalu mengunggah buffer GPU untuk seluruh part ke WebGL context.
+ *
+ * @param {WebGLRenderingContext|WebGL2RenderingContext} gl - Konteks WebGL aktif yang digunakan untuk membuat VBO/IBO mesh tiap bagian tubuh Zombie.
+ *        Utk mengganti: target canvas / WebGL context tempat resource GPU model Zombie dialokasikan.
+ * @returns {{ bones: Record<string, BoneNode>, getBone: (name: string) => BoneNode }}
+ *          Objek berisi kumpulan semua node tulang (`bones`) dan helper fungsi akses simpul tulang (`getBone`).
+ */
 export function buildZombie(gl) {
+      /**
+       * Meneruskan objek geometri apa adanya (pass-through helper).
+       *
+       * @param {object} g - Objek geometri mentah {p, n, i}.
+       *        Utk mengganti: data geometri yang diteruskan ke pipeline pembuatan part.
+       * @returns {object} Geometri g.
+       */
       function mesh(g) { return g; };
       /* ============ JENIS OBJEK & WARNA ============ */
+      /**
+       * Mengonversi kode warna heksadesimal (#RRGGBB) menjadi array float RGB ternormalisasi [0, 1].
+       *
+       * @param {string} h - String kode warna hex 6 digit (contoh: "#7e9a6a").
+       *        Utk mengganti: warna hex yang akan diubah ke format vektor warna float WebGL.
+       * @returns {number[]} Array 3 elemen [r, g, b] dalam rentang 0.0 - 1.0.
+       */
       const hex = (h) =>
         [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16) / 255);
 
 // Registry penyimpanan instance BoneNode berdasarkan nama
 const bones = {};
 /**
- * getBone: Mengambil atau membuat simpul tulang BoneNode berdasarkan nama.
- * @param {string} name - Nama simpul tulang
- * @returns {BoneNode}
+ * Mengambil simpul tulang (BoneNode) dari registry berdasarkan nama, atau menginstansiasi baru jika belum terdaftar.
+ *
+ * @param {string} name - Nama unik pengenal simpul tulang (misal: "root", "body", "head", "jaw", "armL_upper").
+ *        Utk mengganti: target tulang tertentu dalam pohon hierarki skeleton Zombie yang ingin diakses atau dimodifikasi.
+ * @returns {BoneNode} Instance simpul tulang yang bersangkutan.
  */
 function getBone(name) {
   if (!bones[name]) bones[name] = new BoneNode(name);
@@ -42,12 +66,18 @@ getBone("legL_upper").children.push(getBone("legL_lower"));
 getBone("legR_upper").children.push(getBone("legR_lower"));
 
 /**
- * add: Mendaftarkan satu komponen bagian tubuh (mesh) ke tulang tertentu dalam hierarki.
- * @param {Object} m - Data geometri {p, n, i}
- * @param {Array<number>} Mx - Matriks posisi & orientasi lokal part
- * @param {string} t - Tipe primitif geometris
- * @param {string} c - Kode warna HEX
- * @param {string} bone - Nama tulang pemilik (default: "body")
+ * Mendaftarkan satu komponen bagian tubuh (mesh & material) ke tulang tertentu dalam hierarki skeleton.
+ *
+ * @param {Object} m - Data geometri {p: posisi, n: normal, i: indeks segitiga}.
+ *        Utk mengganti: bentuk 3D primitif/poligon dari bagian tubuh tersebut.
+ * @param {Array<number>} Mx - Matriks transformasi 4x4 posisi & orientasi lokal part terhadap tulang induk.
+ *        Utk mengganti: offset translasi, rotasi, atau skala part relatif terhadap pivot tulang pemiliknya.
+ * @param {string} t - Tipe primitif geometris (misal: "ellipsoid", "box", "cylinder", "cone", "tri", "curve").
+ *        Utk mengganti: kategori shader/render pass atau identifikasi mesh part.
+ * @param {string} c - String kode warna hex bagian tubuh (misal: RC.skin, RC.coat).
+ *        Utk mengganti: warna visual dari komponen bagian tubuh tersebut.
+ * @param {string} [bone="body"] - Nama tulang induk pemilik part ini di hierarki skeleton (misal: "head", "jaw", "armL_lower").
+ *        Utk mengganti: simpul tulang mana yang menjadi induk pergerakan part (part otomatis ikut bergerak jika tulang ini bertransformasi).
  */
 function add(m, Mx, t, c, bone) {
   const part = new ZombiePart(gl, m, Mx, hex(c), t);
@@ -75,12 +105,17 @@ function add(m, Mx, t, c, bone) {
       };
 
       /**
-       * pantsTexture: Menghasilkan geometri silinder celana dengan kerutan kain (wrinkled fabric noise).
-       * @param {number} r1 - Radius lingkaran bawah
-       * @param {number} r2 - Radius lingkaran atas
-       * @param {number} nr - Segmen baris vertikal
-       * @param {number} nc - Segmen kolom melingkar
-       * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
+       * Menghasilkan geometri silinder kerucut terpancung untuk celana dengan tambahan gangguan noise kerutan kain (wrinkled fabric).
+       *
+       * @param {number} r1 - Radius lingkaran penampang bawah celana.
+       *        Utk mengganti: kelebaran lingkar ujung bawah kaki celana.
+       * @param {number} r2 - Radius lingkaran penampang atas celana.
+       *        Utk mengganti: kelebaran lingkar pangkal atas paha celana.
+       * @param {number} [nr=10] - Jumlah segmen pembagian baris vertikal (resolusi tinggi celana).
+       *        Utk mengganti: kehalusan deformasi lipatan kerutan celana secara vertikal.
+       * @param {number} [nc=24] - Jumlah segmen pembagian kolom melingkar (resolusi radial).
+       *        Utk mengganti: kehalusan lingkaran keliling celana.
+       * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}} Objek geometri mesh yang siap di-pack.
        */
       function pantsTexture(r1, r2, nr = 10, nc = 24) {
         const p = [],
@@ -102,16 +137,24 @@ function add(m, Mx, t, c, bone) {
       }
 
       /**
-       * curvedEllipsoid: Membangun elipsoid yang ditekuk/dilengkungkan pada sumbu Y dan Z.
-       * Digunakan untuk bagian tubuh yang melengkung natural seperti bahu, dagu, dan lekukan paha.
-       * @param {number} rx - Radius sumbu X
-       * @param {number} ry - Radius sumbu Y
-       * @param {number} rz - Radius sumbu Z
-       * @param {number} bendY - Faktor kelengkungan sumbu Y
-       * @param {number} bendZ - Faktor kelengkungan sumbu Z
-       * @param {number} sl - Slices melingkar
-       * @param {number} st - Stacks vertikal
-       * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
+       * Membangun mesh elipsoid yang ditekuk/dilengkungkan secara kuadratis pada sumbu Y dan Z.
+       * Berguna untuk bagian anatomis yang melengkung natural seperti bibir melengkung, lekukan dagu, dan kontur wajah.
+       *
+       * @param {number} rx - Jari-jari semi-sumbu X (lebar).
+       *        Utk mengganti: dimensi ketebalan horizontal kiri-kanan elipsoid.
+       * @param {number} ry - Jari-jari semi-sumbu Y (tinggi).
+       *        Utk mengganti: dimensi ketebalan vertikal atas-bawah elipsoid.
+       * @param {number} rz - Jari-jari semi-sumbu Z (kedalaman).
+       *        Utk mengganti: dimensi kedalaman maju-mundur elipsoid.
+       * @param {number} bendY - Koefisien pembengkokan vertikal sepanjang sumbu X.
+       *        Utk mengganti: derajat lengkungan bibir/bagian tubuh ke arah atas atau bawah.
+       * @param {number} bendZ - Koefisien pembengkokan horizontal sepanjang sumbu X.
+       *        Utk mengganti: derajat lengkungan bibir/bagian tubuh ke arah depan atau belakang.
+       * @param {number} [sl=24] - Jumlah irisan radial melingkar (slices).
+       *        Utk mengganti: kehalusan kurvatur keliling penampang mesh.
+       * @param {number} [st=16] - Jumlah tumpukan vertikal kutub-ke-kutub (stacks).
+       *        Utk mengganti: kehalusan kurvatur kutub atas ke kutub bawah.
+       * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}} Geometri ter-pack {p, n, i}.
        */
       function curvedEllipsoid(rx, ry, rz, bendY, bendZ, sl = 24, st = 16) {
         const p = [],
@@ -134,14 +177,22 @@ function add(m, Mx, t, c, bone) {
       }
 
       /**
-       * texturedEllipsoid: Elipsoid dengan gangguan permukaan (noise) untuk efek kerutan kain atau kulit kasar.
-       * @param {number} rx - Radius sumbu X
-       * @param {number} ry - Radius sumbu Y
-       * @param {number} rz - Radius sumbu Z
-       * @param {number} sl - Slices
-       * @param {number} st - Stacks
-       * @param {string} type - Jenis tekstur ("cloth" untuk kain jas, "skin" untuk tengkorak bergelombang)
-       * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
+       * Membangun mesh elipsoid dengan perturbasi matematis (procedural noise) pada permukaan vertex-nya.
+       * Digunakan untuk menciptakan tekstur kerutan baju jas zombie ("cloth") atau benjolan tengkorak kepala zombie ("skin").
+       *
+       * @param {number} rx - Jari-jari semi-sumbu X.
+       *        Utk mengganti: skala lebar dasar elipsoid sebelum diberi noise.
+       * @param {number} ry - Jari-jari semi-sumbu Y.
+       *        Utk mengganti: skala tinggi dasar elipsoid sebelum diberi noise.
+       * @param {number} rz - Jari-jari semi-sumbu Z.
+       *        Utk mengganti: skala ketebalan depan-belakang elipsoid sebelum diberi noise.
+       * @param {number} [sl=24] - Jumlah irisan radial (slices).
+       *        Utk mengganti: resolusi mesh keliling elipsoid agar detail noise terlihat tegas.
+       * @param {number} [st=16] - Jumlah tumpukan vertikal (stacks).
+       *        Utk mengganti: resolusi mesh kutub vertikal elipsoid.
+       * @param {string} [type="cloth"] - Varian profil algoritma noise ("cloth" untuk lipatan kain jas, "skin" untuk kontur tengkorak asimetris dan pori mikro).
+       *        Utk mengganti: jenis pola deformasi permukaan (efek kain terlipat vs kepala zombie bergelombang).
+       * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}} Geometri ter-pack {p, n, i}.
        */
       function texturedEllipsoid(rx, ry, rz, sl = 24, st = 16, type = "cloth") {
         const p = [],
@@ -450,6 +501,22 @@ function add(m, Mx, t, c, bone) {
           "eyeL",
         );
         // --- fungsi pembuat urat tipis ---
+        /**
+         * Membangun mesh urat-urat mata merah tipis berliku secara prosedural di permukaan bola mata.
+         *
+         * @param {number} cx - Koordinat X pusat bola mata.
+         *        Utk mengganti: posisi horizontal titik acuan asal urat mata.
+         * @param {number} cy - Koordinat Y pusat bola mata.
+         *        Utk mengganti: ketinggian vertikal titik acuan asal urat mata.
+         * @param {number} cz - Koordinat Z pusat bola mata.
+         *        Utk mengganti: kedalaman maju-mundur titik acuan asal urat mata.
+         * @param {number} r - Jari-jari bola mata tempat urat menempel.
+         *        Utk mengganti: radius kelengkungan permukaan tempel urat agar menempel presisi di kontur bola mata.
+         * @param {string} bone - Nama tulang mata pemilik urat ("eyeL" atau "eyeR").
+         *        Utk mengganti: simpul tulang mata mana yang diikuti gerakannya oleh urat ini.
+         * @param {number} numVeins - Jumlah helai urat merah yang digenerate acak.
+         *        Utk mengganti: tingkat kerapatan pembuluh darah mata merah Zombie (semakin banyak, semakin seram/merah).
+         */
         function makeVeins(cx, cy, cz, r, bone, numVeins) {
           const veinM = mesh(cylinder(0.0002, 6));
           for (let i = 0; i < numVeins; i++) {
@@ -714,6 +781,26 @@ function add(m, Mx, t, c, bone) {
             m4.T(Wh[0], Wh[1] - 0.08, Wh[2] + 0.01),
             "ellipsoid",
             RC.skin, lo, ); // telapak tangan
+          /**
+           * Membangun ruas-ruas geometri 3D sebuah jari tangan Zombie (ruas atas, knuckle, ruas bawah, ujung jari, kuku).
+           *
+           * @param {number} dx - Offset posisi X pangkal jari relatif terhadap pergelangan tangan (Wh).
+           *        Utk mengganti: posisi horizontal jari pada telapak tangan (sebelah dalam/luar).
+           * @param {number} dy - Offset posisi Y pangkal jari relatif terhadap pergelangan tangan (Wh).
+           *        Utk mengganti: posisi vertikal pangkal jari pada telapak tangan.
+           * @param {number} dz - Offset posisi Z pangkal jari relatif terhadap pergelangan tangan (Wh).
+           *        Utk mengganti: kedalaman maju-mundur pangkal jari pada telapak tangan.
+           * @param {number} length1 - Panjang ruas jari bagian atas (dari pangkal ke knuckle).
+           *        Utk mengganti: ukuran panjang segmen pertama jari.
+           * @param {number} length2 - Panjang ruas jari bagian bawah (dari knuckle ke ujung jari).
+           *        Utk mengganti: ukuran panjang segmen kedua jari.
+           * @param {number} curveZ - Derajat tekukan jari ke arah depan/belakang (sumbu Z).
+           *        Utk mengganti: kelengkungan genggaman jari maju atau mencengkeram ke belakang.
+           * @param {number} curveX - Derajat pembengkokan jari ke arah samping kiri/kanan (sumbu X).
+           *        Utk mengganti: arah mekar atau menyempitnya sela-sela jari tangan.
+           * @param {boolean} [isThumb=false] - Penanda apakah jari yang dibangun adalah ibu jari/jempol.
+           *        Utk mengganti: orientasi penempatan kuku dan rasio tekukan khusus jempol.
+           */
           const buildFinger = (
             dx,
             dy,

@@ -10,6 +10,15 @@
 import { buildZombie } from "./model.js";
 import { makeZombieAnimator, applyZombiePose } from "./animation.js";
 
+import { buildZombie } from "./model.js";
+import { makeZombieAnimator, applyZombiePose } from "./animation.js";
+
+/**
+ * Menginisialisasi scene karakter zombie lengkap dengan kompilasi shader WebGL,
+ * mapping uniform/atribut, perakitan model pohon tulang hierarki, dan fungsi kontrol per-frame.
+ * @param {WebGLRenderingContext|WebGL2RenderingContext} gl - Konteks rendering WebGL aktif (mengganti konteks grafis target tempat shader dan buffer dialokasikan)
+ * @returns {{ update: function(number, object=): void, render: function(number[], number[], number[], number[]): void }} Objek pengendali zombie berisi metode `update` dan `render`
+ */
 export function createZombieScene(gl) {
   "use strict";
 
@@ -40,7 +49,13 @@ void main(){
   vec3 sickly=vec3(-.04,.05,-.02)*(f+.1);
   vec3 col=uC*(hemi*ao+vec3(1.,.97,.92)*.85*d+f*ao)+vec3(sp)+uC*rim*ao+sickly;
   gl_FragColor=vec4(col,1.);}`;
-      // Fungsi pembantu untuk mengompilasi shader WebGL (Vertex / Fragment)
+
+      /**
+       * Fungsi pembantu untuk mengompilasi shader WebGL individual (Vertex atau Fragment shader).
+       * @param {number} t - Tipe shader WebGL: `gl.VERTEX_SHADER` atau `gl.FRAGMENT_SHADER` (mengganti tahapan pipeline yang dikompilasi)
+       * @param {string} s - String kode sumber GLSL shader (mengganti logika komputasi grafis vertex atau fragment)
+       * @returns {WebGLShader} Objek WebGLShader yang telah terkompilasi
+       */
       function sh(t, s) {
         const o = gl.createShader(t);
         gl.shaderSource(o, s);
@@ -50,7 +65,12 @@ void main(){
         return o;
       }
 
-      // Fungsi pembantu untuk menautkan (link) Vertex & Fragment Shader menjadi WebGLProgram
+      /**
+       * Fungsi pembantu untuk menautkan (link) Vertex & Fragment Shader menjadi sebuah WebGLProgram siap pakai.
+       * @param {string} vs - Kode sumber GLSL untuk vertex shader (mengganti pemrosesan posisi vertex dan normal)
+       * @param {string} fs - Kode sumber GLSL untuk fragment shader (mengganti model kalkulasi pencahayaan dan warna)
+       * @returns {WebGLProgram} Program WebGL yang siap digunakan pada GPU
+       */
       function prog(vs, fs) {
         const p = gl.createProgram();
         gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
@@ -81,9 +101,11 @@ void main(){
   let animT = 0;
 
   /**
-   * update: Memperbarui kondisi animasi dan matriks lokal setiap tulang kerangka zombie per frame.
-   * @param {number} dt - Delta waktu sejak frame sebelumnya (detik)
-   * @param {Object} state - Status jalan zombie { isWalking, walkTime }
+   * Memperbarui kondisi animasi dan matriks lokal setiap tulang kerangka hierarki zombie per frame.
+   * @param {number} dt - Nilai selisih/delta waktu sejak frame sebelumnya dalam satuan detik (mengubah kecepatan pertambahan waktu animasi global)
+   * @param {Object} [state={}] - Objek status pergerakan zombie:
+   * @param {boolean} [state.isWalking=false] - Status apakah zombie sedang dalam mode berjalan (mengubah transisi antara animasi diam bernapas dan animasi melangkah)
+   * @param {number} [state.walkTime=0] - Akumulasi waktu siklus langkah kaki berjalan (mengganti fase/posisi kaki dan ayunan tangan dalam siklus jalan)
    */
   function update(dt, state = {}) {
     animT += dt;
@@ -92,9 +114,12 @@ void main(){
   }
 
   /**
-   * Render karakter zombie di posisi dunia
-   * 5. HIERARCHICAL TRANSFORMATION:
-   * parentWorldWrap mewariskan transformasi dari root world matrix ke setiap tulang
+   * Merender seluruh mesh bagian tubuh zombie di posisi ruang dunia (world space)
+   * dengan menerapkan transformasi hierarki dari root node ke seluruh cabang tulang.
+   * @param {Array<number>|Float32Array} Pr - Matriks proyeksi kamera berukuran 4x4 (mengubah mode perspektif/orthogonal dan sudut pandang FOV)
+   * @param {Array<number>|Float32Array} V - Matriks pandangan (view matrix) berukuran 4x4 (mengubah posisi dan orientasi orientasi kamera pengamat)
+   * @param {Array<number>|Float32Array} parentWorldWrap - Matriks transformasi dunia (world matrix) dari root zombie (mengganti posisi translate, orientasi rotasi, dan skala ukuran seluruh tubuh zombie di world space)
+   * @param {Array<number>|[number, number, number]} eye - Vektor posisi kamera di ruang dunia `[x, y, z]` (mengganti arah pandang pengamat untuk perhitungan pantulan specular & rim light)
    */
   function render(Pr, V, parentWorldWrap, eye) {
     gl.useProgram(pr);

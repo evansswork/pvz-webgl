@@ -163,6 +163,15 @@ const gl = cv.getContext("webgl2", { antialias: true, stencil: true });
 if (!gl) alert("WebGL2 tidak didukung!");
 
 const pg = gl.createProgram();
+
+/**
+ * Mengompilasi kode sumber shader (Vertex atau Fragment) dan menautkannya ke WebGL Program.
+ * @param {number} t - Tipe shader WebGL: `gl.VERTEX_SHADER` atau `gl.FRAGMENT_SHADER`.
+ *        Mengubah parameter ini menentukan apakah kode GLSL diproses pada tahap pemrosesan verteks atau pewarnaan piksel/fragmen.
+ * @param {string} s - String kode sumber GLSL shader (source code).
+ *        Mengubah string ini memodifikasi logika transformasi verteks (vs) atau formula pencahayaan dan material warna (fs).
+ * @returns {void}
+ */
 const sh = (t, s) => {
   const o = gl.createShader(t);
   gl.shaderSource(o, s);
@@ -185,6 +194,11 @@ gl.uniformMatrix4fv(U.uR, false, ID4);
 // =====================================================================
 //  3. SCENE GRAVEYARD
 // =====================================================================
+/**
+ * Inisialisasi dan konfigurasi scene lingkungan Kuburan (Graveyard).
+ * Mengelola VAO primitif terpadu, lingkungan langit/tanah, serta rendering nisan dan tembok.
+ * @returns {{render: Function, getTerrainHeight: Function}} Objek pengontrol scene graveyard.
+ */
 export function createGraveyardScene() {
   const pv = gl.createVertexArray();
   const pb = gl.createBuffer();
@@ -195,12 +209,24 @@ export function createGraveyardScene() {
   gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
   gl.bindVertexArray(null);
 
-  function getTerrainHeight() {
+  /**
+   * Mengembalikan elevasi ketinggian permukaan tanah dasar area kuburan.
+   * Digunakan oleh logika karakter/zombie saat melangkah di area kuburan agar menapak pas di atas tanah.
+   * @param {number} [x] - Koordinat posisi horizontal X (opsional).
+   * @param {number} [z] - Koordinat posisi kedalaman Z (opsional).
+   * @returns {number} Ketinggian elevasi bidang tanah kuburan (Y = 10.535).
+   */
+  function getTerrainHeight(x, z) {
     return 10.535;
   }
 
   const env = createEnvironment(gl, U, ID4);
 
+  /**
+   * Menggambar seluruh objek 3D statis kuburan (nisan makam, jalan setapak batu, tembok perimeter, tiang, dan pohon tua).
+   * Melakukan iterasi terhadap array data `OBJEK_GRAVEYARD` dan mengirimkan uniform matriks, ukuran proksi, serta warna ke GPU.
+   * @returns {void}
+   */
   function drawShapes() {
     gl.bindVertexArray(pv);
     gl.uniformMatrix4fv(U.uR, false, ID4);
@@ -243,6 +269,17 @@ export function createGraveyardScene() {
     gl.bindVertexArray(null);
   }
 
+  /**
+   * Render utama lingkungan kuburan per frame.
+   * @param {Float32Array|Array<number>} VP - Matriks gabungan Proyeksi-Pandang (View-Projection Matrix $P \times V$).
+   *        Mengubah VP akan mengubah sudut pandang kamera, perspektif FOV, atau posisi kamera terhadap kuburan.
+   * @param {Array<number>} eye - Koordinat posisi kamera pengamat di dunia 3D `[x, y, z]`.
+   *        Digunakan oleh shader untuk menghitung vektor pandang (view vector), specular highlight sinar bulan, rim light, dan jarak kabut malam.
+   * @param {Object} [options={}] - Konfigurasi render tambahan:
+   * @param {number} [options.exposure=1.4] - Faktor eksposur pencahayaan malam.
+   *        Mengubah nilai exposure akan menerangkan atau menggelapkan suasana malam di area kuburan sebelum proses tone mapping ACES.
+   * @returns {void}
+   */
   function render(VP, eye, options = {}) {
     const { exposure = 1.4 } = options;
 

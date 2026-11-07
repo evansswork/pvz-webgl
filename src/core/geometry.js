@@ -6,10 +6,29 @@
    ========================================================================= */
 import { V3, M4, seg, m4, M, sub, nrm, tr, inv, axisRot, cr, dt } from './math.js';
 
+/**
+ * Membuat container geometri 3D kosong dengan buffer posisi, normal, dan indeks.
+ * @returns {{ pos: number[], nor: number[], idx: number[] }} Objek geometri kosong
+ */
 export function newGeo() { return { pos: [], nor: [], idx: [] }; }
+
+/**
+ * Menambahkan sebuah vertex (posisi dan normal) ke dalam objek geometri.
+ * @param {{ pos: number[], nor: number[], idx: number[] }} g - Objek geometri target yang akan ditambahkan vertex
+ * @param {[number, number, number]} p - Vektor posisi vertex [x, y, z] untuk menentukan koordinat titik
+ * @param {[number, number, number]} n - Vektor normal vertex [nx, ny, nz] untuk pencahayaan dan orientasi permukaan
+ * @returns {number} Indeks vertex baru yang berhasil ditambahkan
+ */
 export function pushV(g, p, n) { g.pos.push(p[0], p[1], p[2]); g.nor.push(n[0], n[1], n[2]); return g.pos.length / 3 - 1; }
 
-/** Index quad untuk grid rows x cols (vertex disusun per baris mulai dari `base`) */
+/**
+ * Menyusun indeks poligon segitiga (triangulasi) untuk grid teratur quad berukuran rows x cols.
+ * Vertex diasumsikan telah dimasukkan berurutan baris demi baris mulai dari indeks `base`.
+ * @param {{ pos: number[], nor: number[], idx: number[] }} g - Objek geometri tempat indeks segitiga disimpan
+ * @param {number} base - Offset indeks awal vertex pada buffer (indeks vertex sudut kiri atas grid)
+ * @param {number} rows - Jumlah baris titik vertex pada grid (mengubah tinggi/resolusi vertikal grid)
+ * @param {number} cols - Jumlah kolom titik vertex pada grid (mengubah lebar/resolusi horizontal grid)
+ */
 export function gridIdx(g, base, rows, cols) {
   for (let r = 0; r < rows - 1; r++) {
     for (let c = 0; c < cols - 1; c++) {
@@ -19,7 +38,12 @@ export function gridIdx(g, base, rows, cols) {
   }
 }
 
-/** Menyamakan arah winding segitiga dengan normal vertex (supaya back-face culling & outline benar) */
+/**
+ * Menyamakan arah winding (urutan putaran segitiga CCW/CW) dengan arah normal vertex
+ * agar culling sisi belakang (back-face culling) dan efek cel-shading/outline konsisten menghadap luar.
+ * @param {{ pos: number[], nor: number[], idx: number[] }} g - Objek geometri yang urutan indeks poligonnya akan disesuaikan
+ * @returns {{ pos: number[], nor: number[], idx: number[] }} Objek geometri yang sama setelah orientasinya dirapikan
+ */
 export function orient(g) {
   const P = g.pos, N = g.nor, I = g.idx;
   for (let i = 0; i < I.length; i += 3) {
@@ -33,7 +57,11 @@ export function orient(g) {
   return g;
 }
 
-/** Gabungkan banyak geometri (masing-masing dengan matriks transform) menjadi satu */
+/**
+ * Menggabungkan beberapa geometri terpisah beserta matriks transformasinya masing-masing menjadi satu kesatuan mesh tunggal.
+ * @param {Array<[{ pos: number[], nor: number[], idx: number[] }, number[]]>} list - Daftar pasangan `[geometri, matriks4x4]` yang akan ditransformasikan dan digabung
+ * @returns {{ pos: number[], nor: number[], idx: number[] }} Geometri hasil gabungan (posisi dan normal telah ditransformasikan)
+ */
 export function mergeGeo(list) {
   const out = newGeo();
   for (const [g, m] of list) {
@@ -55,6 +83,15 @@ export function mergeGeo(list) {
    x²/rx² + y²/ry² + z²/rz² = 1
    Parametrik: x = rx·cosφ·sinθ, y = ry·sinφ, z = rz·cosφ·cosθ
    Normal    : ∇F = (x/rx², y/ry², z/rz²)                                       */
+/**
+ * Menghasilkan geometri kuadrik elipsoid (bola atau lonjong) terpusat di titik asal.
+ * @param {number} rx - Jari-jari semi-sumbu X (mengubah lebar elipsoid secara horizontal ke samping)
+ * @param {number} ry - Jari-jari semi-sumbu Y (mengubah tinggi elipsoid secara vertikal ke atas-bawah)
+ * @param {number} rz - Jari-jari semi-sumbu Z (mengubah kedalaman elipsoid ke depan-belakang)
+ * @param {number} [lat=28] - Jumlah segmen garis lintang vertikal / latitude (mengatur kehalusan lengkungan dari kutub atas ke bawah)
+ * @param {number} [lon=44] - Jumlah segmen garis bujur horizontal / longitude (mengatur kehalusan keliling memutar elipsoid)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function ellipsoid(rx, ry, rz, lat = 28, lon = 44) {
   const g = newGeo();
   for (let i = 0; i <= lat; i++) {
@@ -73,6 +110,14 @@ export function ellipsoid(rx, ry, rz, lat = 28, lon = 44) {
 
 /* ============================ QUADRIC 2: CYLINDER =============================
    x²/r² + z²/r² = 1,  0 ≤ y ≤ h  (plus tutup atas & bawah)                    */
+/**
+ * Menghasilkan geometri kuadrik silinder/tabung tegak lurus sumbu Y lengkap dengan tutup atas dan bawah.
+ * @param {number} r - Jari-jari lingkaran alas dan tutup silinder (mengubah ketebalan silinder)
+ * @param {number} h - Tinggi silinder sepanjang sumbu Y (mengubah panjang dari y = 0 hingga y = h)
+ * @param {number} [seg=28] - Jumlah segmen melingkar penampang tabung (mengatur kebulatan sisi silinder)
+ * @param {number} [rings=4] - Jumlah pembagian cincin vertikal sepanjang badan silinder (mengatur kerapatan subdivisi tinggi)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function cylinder(r, h, seg = 28, rings = 4) {
   const g = newGeo();
   for (let i = 0; i <= rings; i++) {
@@ -98,6 +143,17 @@ export function cylinder(r, h, seg = 28, rings = 4) {
      depan   : z = t − (t+d)·u²   (cembung, menghadap depan)
      belakang: z =   −   d ·u²
    dengan x = a·u·cosθ, y = b·u·sinθ, 0 ≤ u ≤ 1                                 */
+/**
+ * Menghasilkan geometri kuadrik paraboloid eliptik ganda (berbentuk lensa cembung/cekung),
+ * umum digunakan untuk kelopak bunga matahari (Sunflower).
+ * @param {number} a - Radius semi-sumbu X penampang oval kelopak (mengatur lebar kelopak)
+ * @param {number} b - Radius semi-sumbu Y penampang oval kelopak (mengatur panjang vertikal kelopak)
+ * @param {number} depth - Kedalaman lengkungan paraboloid sisi belakang (mengatur kecekungan/kelengkungan belakang)
+ * @param {number} thick - Ketebalan puncak paraboloid sisi depan (mengatur kecembungan puncak lensa di tengah)
+ * @param {number} [segU=10] - Jumlah segmen radial dari pusat kelopak ke tepi luar (mengatur kehalusan gradasi dari tengah ke tepi)
+ * @param {number} [segV=36] - Jumlah segmen sudut melingkar di sekeliling kelopak (mengatur kehalusan bentuk tepi oval)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function paraboloidLens(a, b, depth, thick, segU = 10, segV = 36) {
   const g = newGeo();
   const kf = thick + depth, kb = depth;
@@ -122,6 +178,13 @@ export function paraboloidLens(a, b, depth, thick, segU = 10, segV = 36) {
 
 /* ============================ QUADRIC 4: CONE (environment) ===================
    x² + z² = (r·(1 − y/h))²                                                      */
+/**
+ * Menghasilkan geometri kuadrik kerucut (cone) dengan alas melingkar pada y = 0 dan puncak di (0, h, 0).
+ * @param {number} r - Jari-jari lingkaran alas kerucut (mengatur kelebaran dasar kerucut)
+ * @param {number} h - Tinggi kerucut dari dasar ke puncak lancip (mengatur kelancipan/panjang kerucut)
+ * @param {number} [seg=14] - Jumlah segmen poligon melingkar sekeliling kerucut (mengatur kehalusan kebulatan dasar)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function cone(r, h, seg = 14) {
   const g = newGeo(), l = Math.hypot(r, h);
   for (let j = 0; j <= seg; j++) {
@@ -141,6 +204,16 @@ export function cone(r, h, seg = 14) {
    Potongan permukaan cone x² + z² = (r0 + (r1 − r0)·y/h)²,  0 ≤ y ≤ h.
    Ujung terbuka (tanpa tutup). inward = true → normal menghadap ke sumbu
    (dipakai untuk dinding dalam moncong).                                        */
+/**
+ * Menghasilkan kerucut terpotong (frustum) tanpa tutup, membentang dari y = 0 sampai y = h.
+ * @param {number} r0 - Jari-jari lingkaran pada posisi bawah y = 0 (mengatur bukaan/lebar bawah)
+ * @param {number} r1 - Jari-jari lingkaran pada posisi atas y = h (mengatur bukaan/lebar atas)
+ * @param {number} h - Tinggi frustum kerucut pada sumbu Y (mengatur jarak vertikal antar lingkaran)
+ * @param {number} [seg=36] - Jumlah segmen melingkar (mengatur kehalusan kontur silindris/kerucut)
+ * @param {number} [rings=6] - Jumlah pembagian cincin vertikal sepanjang badan (mengatur kehalusan subdivisi tinggi)
+ * @param {boolean} [inward=false] - Arah vektor normal; jika true, normal menghadap ke dalam sumbu (cocok untuk interior berlubang seperti rongga moncong peashooter)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function coneFrustum(r0, r1, h, seg = 36, rings = 6, inward = false) {
   const g = newGeo(), l = Math.hypot(h, r1 - r0), sgn = inward ? -1 : 1;
   for (let i = 0; i <= rings; i++) {
@@ -156,6 +229,14 @@ export function coneFrustum(r0, r1, h, seg = 36, rings = 6, inward = false) {
 
 /* ============================ OBJEK LAIN: TORUS ==============================
    (√(x² + z²) − R)² + y² = r²   — bibir moncong. Torus BUKAN quadric (derajat 4). */
+/**
+ * Menghasilkan geometri torus (bentuk donat) pada bidang XZ berpusat di titik asal.
+ * @param {number} R - Jari-jari mayor dari pusat asal ke sumbu lingkaran tabung (mengatur lebar cincin donat keseluruhan)
+ * @param {number} r - Jari-jari minor penampang tabung melingkar (mengatur ketebalan badan tabung donat)
+ * @param {number} [segU=40] - Jumlah segmen melingkari cincin utama donat (mengatur kebulatan lingkaran besar)
+ * @param {number} [segV=14] - Jumlah segmen penampang tabung donat (mengatur kebulatan profil ketebalan)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function torus(R, r, segU = 40, segV = 14) {
   const g = newGeo();
   for (let i = 0; i <= segU; i++) {
@@ -169,7 +250,12 @@ export function torus(R, r, segU = 40, segV = 14) {
   return orient(g);
 }
 
-/** Cakram datar (dipakai untuk "dasar gelap" di dalam moncong & papan target) */
+/**
+ * Menghasilkan geometri cakram (disc) 2D datar melingkar pada bidang XZ yang menghadap ke arah +Y.
+ * @param {number} r - Jari-jari lingkaran cakram (mengatur luas atau radius piringan)
+ * @param {number} [seg=36] - Jumlah subdivisi sudut melingkar (mengatur kehalusan bentuk lingkaran)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function disc(r, seg = 36) {
   const g = newGeo(), c = pushV(g, [0, 0, 0], [0, 1, 0]);
   for (let j = 0; j <= seg; j++) { const th = (2 * Math.PI * j) / seg; pushV(g, [r * Math.sin(th), 0, r * Math.cos(th)], [0, 1, 0]); }
@@ -179,6 +265,13 @@ export function disc(r, seg = 36) {
 
 /* ============================ OBJEK LAIN: BOX ================================
    Balok w × h × d berpusat di titik asal (normal datar per sisi).              */
+/**
+ * Menghasilkan geometri balok/kotak (box) 3D dengan normal rata (flat) per masing-masing dari 6 sisinya.
+ * @param {number} w - Lebar balok sepanjang sumbu X (mengubah dimensi lebar horizontal)
+ * @param {number} h - Tinggi balok sepanjang sumbu Y (mengubah dimensi tinggi vertikal)
+ * @param {number} d - Kedalaman balok sepanjang sumbu Z (mengubah dimensi tebal depan-belakang)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function box(w, h, d) {
   const g = newGeo(), x = w / 2, y = h / 2, z = d / 2;
   const faces = [
@@ -200,18 +293,43 @@ export function box(w, h, d) {
 /* ================================ KURVA BÉZIER ================================
    B(t) = (1−t)³P0 + 3(1−t)²t P1 + 3(1−t)t² P2 + t³ P3                           */
 export const Bezier = {
+  /**
+   * Menghitung posisi titik 3D pada kurva Bézier kubik berdasarkan nilai t parameter.
+   * @param {Array<[number, number, number]>} P - Array 4 titik kontrol pembentuk kurva Bézier [[x,y,z], ...] (mengubah bentuk dan orientasi kurva)
+   * @param {number} t - Nilai parameter interpolasi kurva dari 0.0 (titik awal P0) sampai 1.0 (titik akhir P3)
+   * @returns {[number, number, number]} Koordinat [x, y, z] hasil evaluasi kurva pada parameter t
+   */
   point(P, t) {
     const u = 1 - t, b0 = u * u * u, b1 = 3 * u * u * t, b2 = 3 * u * t * t, b3 = t * t * t;
     return [0, 1, 2].map((k) => b0 * P[0][k] + b1 * P[1][k] + b2 * P[2][k] + b3 * P[3][k]);
   },
+  /**
+   * Menghitung vektor tangen (turunan pertama / arah maju kurva) pada nilai t parameter.
+   * @param {Array<[number, number, number]>} P - Array 4 titik kontrol kurva Bézier kubik
+   * @param {number} t - Nilai parameter evaluasi dari 0.0 sampai 1.0
+   * @returns {[number, number, number]} Vektor arah singgung/tangen (belum dinormalisasi) pada titik t
+   */
   tangent(P, t) {
     const u = 1 - t;
     return [0, 1, 2].map((k) => 3 * u * u * (P[1][k] - P[0][k]) + 6 * u * t * (P[2][k] - P[1][k]) + 3 * t * t * (P[3][k] - P[2][k]));
   },
+  /**
+   * Mengambil sampel titik-titik diskrit sepanjang kurva Bézier kubik secara merata.
+   * @param {Array<[number, number, number]>} P - Array 4 titik kontrol kurva Bézier kubik
+   * @param {number} n - Jumlah segmen pembagian sampel (mengubah kerapatan titik sampel kurva)
+   * @returns {Array<[number, number, number]>} Array berisi n+1 koordinat titik sampel sepanjang kurva
+   */
   sample(P, n) { const pts = []; for (let i = 0; i <= n; i++) pts.push(Bezier.point(P, i / n)); return pts; },
 };
 
-/** Tube (tabung) mengikuti deretan titik kurva, radius boleh berubah: radiusFn(t) */
+/**
+ * Menghasilkan tabung (tube) 3D yang membungkus deretan titik lintasan kurva,
+ * dengan radius fleksibel yang dapat bervariasi di setiap titik t menggunakan frame parallel transport.
+ * @param {Array<[number, number, number]>} points - Daftar urutan koordinat titik 3D sebagai lintasan atau tulang belakang tabung
+ * @param {function(number): number} radiusFn - Fungsi pemetaan radius `(t) => r`, menerima t dari 0.0 s.d 1.0 (mengatur variasi ketebalan tabung di setiap segmen lintasan)
+ * @param {number} [radial=12] - Jumlah segmen sudut melingkar penampang tabung (mengatur kebulatan penampang silinder pipa)
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function tube(points, radiusFn, radial = 12) {
   const g = newGeo(), n = points.length;
   const T = points.map((p, i) => V3.norm(V3.sub(points[Math.min(i + 1, n - 1)], points[Math.max(i - 1, 0)])));
@@ -251,6 +369,21 @@ export function tube(points, radiusFn, radial = 12) {
    Titik di antara keduanya diisi interpolasi linear:  P(t,s) = (1−s)·L(t) + s·R(t)
    lalu bagian tengah diturunkan → permukaan cekung, ujung menekuk ke bawah.
    Permukaan diberi ketebalan (solid) supaya outline kartun terbentuk rapi.        */
+/**
+ * Menghasilkan geometri daun parametrik 3D berdinding ganda (solid bervolume)
+ * dibentuk dari batas kurva Bézier kiri-kanan serta lekukan tengah.
+ * @param {object} options - Konfigurasi parameter bentuk daun:
+ * @param {number} options.length - Panjang total daun di sepanjang sumbu X (mengubah bentangan daun dari pangkal ke ujung)
+ * @param {number} options.width - Setengah lebar daun di sepanjang sumbu Z (mengubah kelebaran mekar daun ke samping)
+ * @param {number} [options.lift=0.16] - Ketinggian angkat kurva pada sepertiga awal daun (mengatur kelengkungan naik daun dekat tangkai)
+ * @param {number|null} [options.lift2=null] - Ketinggian angkat kurva pada dua pertiga panjang daun; jika null otomatis mengikuti 0.9 * lift (mengatur kelengkungan punggung daun bagian tengah)
+ * @param {number} [options.tipDrop=-0.12] - Ketinggian ujung daun relatif terhadap pangkal (nilai negatif membuat ujung daun terkulai/menunduk ke bawah)
+ * @param {number} [options.sag=0.06] - Kedalaman cekungan di garis tengah daun (mengatur seberapa melengkung membentuk talang/cekungan di tengah helai daun)
+ * @param {number} [options.thick=0.022] - Ketebalan dinding solid daun (mengatur ketebalan mesh atas ke bawah agar memiliki volume 3D)
+ * @param {number} [options.nt=30] - Resolusi pembagian segmen memanjang dari pangkal ke ujung (mengatur kehalusan lengkungan daun sepanjang sumbu panjang)
+ * @param {number} [options.ns=10] - Resolusi pembagian segmen melintang dari tepi kiri ke kanan (mengatur kehalusan penampang melintang daun)
+ * @returns {{ geo: { pos: number[], nor: number[], idx: number[] }, vein: Array<[number, number, number]>, curves: { left: Array<[number, number, number]>, right: Array<[number, number, number]> } }}
+ */
 export function leaf({ length: L, width: W, lift = 0.16, lift2 = null, tipDrop = -0.12, sag = 0.06, thick = 0.022, nt = 30, ns = 10 }) {
   const left = [[0, 0, 0], [0.26 * L, lift, 1.05 * W], [0.7 * L, lift2 === null ? lift * 0.9 : lift2, 0.95 * W], [L, tipDrop, 0]];
   const right = left.map((p) => [p[0], p[1], -p[2]]);
@@ -309,6 +442,13 @@ export function leaf({ length: L, width: W, lift = 0.16, lift2 = null, tipDrop =
 }
 
 /* Bidang datar (rumput / lantai) */
+/**
+ * Menghasilkan geometri bidang datar segi empat (plane) pada sumbu XZ dengan posisi y = 0 menghadap ke atas.
+ * @param {number} w - Lebar bidang sepanjang sumbu X (mengubah dimensi lebar bentangan bidang)
+ * @param {number} d - Kedalaman/panjang bidang sepanjang sumbu Z (mengubah dimensi kedalaman bentangan bidang)
+ * @param {any} [color] - Parameter cadangan warna jika diperlukan untuk atribut visual
+ * @returns {{ pos: number[], nor: number[], idx: number[] }}
+ */
 export function plane(w, d, color) {
   const g = newGeo();
   pushV(g, [-w / 2, 0, -d / 2], [0, 1, 0]); pushV(g, [w / 2, 0, -d / 2], [0, 1, 0]);
@@ -335,9 +475,9 @@ export function plane(w, d, color) {
 /**
  * pack: Mengemas array koordinat biasa menjadi format TypedArray WebGL
  * (Float32Array untuk posisi & normal, Uint16Array untuk indeks segitiga).
- * @param {Array<number>} p - Data posisi vertex [x0, y0, z0, x1, ...]
- * @param {Array<number>} n - Data normal vektor [nx0, ny0, nz0, ...]
- * @param {Array<number>} i - Indeks segitiga [i0, i1, i2, ...]
+ * @param {Array<number>} p - Data posisi vertex [x0, y0, z0, x1, ...] (mengubah koordinat posisi seluruh titik vertex)
+ * @param {Array<number>} n - Data normal vektor [nx0, ny0, nz0, ...] (mengubah arah pencahayaan dan pantulan shading)
+ * @param {Array<number>} i - Indeks segitiga [i0, i1, i2, ...] (mengubah urutan pembentukan poligon segitiga antar vertex)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}} Objek geometri terpaket
  */
 function pack(p, n, i) {
@@ -351,9 +491,9 @@ function pack(p, n, i) {
 /**
  * grid: Melakukan triangulasi otomatis pada kisi grid 2D berukuran (rows x cols).
  * Setiap sel persegi (quad) dipecah menjadi 2 buah segitiga (6 indeks).
- * @param {number} rows - Jumlah baris kisi
- * @param {number} cols - Jumlah kolom kisi
- * @param {Array<number>} idx - Array target untuk menampung indeks segitiga
+ * @param {number} rows - Jumlah baris kisi (mengatur pembagian segmen arah baris/tinggi)
+ * @param {number} cols - Jumlah kolom kisi (mengatur pembagian segmen arah kolom/keliling)
+ * @param {Array<number>} idx - Array target untuk menampung indeks segitiga hasil triangulasi
  */
 function grid(rows, cols, idx) {
   for (let r = 0; r < rows; r++)
@@ -367,8 +507,8 @@ function grid(rows, cols, idx) {
 /**
  * normals: Menghitung vektor normal per-vertex secara otomatis melalui akumulasi
  * cross product sisi-sisi segitiga dari seluruh poligon yang berbagi vertex tersebut.
- * @param {Array<number>} p - Array posisi vertex
- * @param {Array<number>} idx - Array indeks segitiga
+ * @param {Array<number>} p - Array datar posisi vertex [x0, y0, z0, ...] (sumber titik koordinat untuk menghitung bidang permukaan)
+ * @param {Array<number>} idx - Array indeks segitiga (urutan titik pembentuk segitiga untuk penentuan arah normal bidang)
  * @returns {Array<number>} Array vektor normal per-vertex yang telah dinormalisasi
  */
 function normals(p, idx) {
@@ -400,11 +540,11 @@ function normals(p, idx) {
  * QUADRIC: ELLIPSOID
  * Menghasilkan bentuk elipsoid (bola lonjong) parametrik dengan radius semi-sumbu rx, ry, rz.
  * Digunakan untuk: kepala zombie, bola mata, hidung, daging rahang, dan sendi.
- * @param {number} rx - Radius sumbu X
- * @param {number} ry - Radius sumbu Y
- * @param {number} rz - Radius sumbu Z
- * @param {number} sl - Jumlah segmen horizontal (slice)
- * @param {number} st - Jumlah segmen vertikal (stack)
+ * @param {number} rx - Radius semi-sumbu X (mengubah lebar elipsoid secara horizontal)
+ * @param {number} ry - Radius semi-sumbu Y (mengubah tinggi elipsoid secara vertikal)
+ * @param {number} rz - Radius semi-sumbu Z (mengubah kedalaman/ketebalan elipsoid ke depan-belakang)
+ * @param {number} [sl=32] - Jumlah segmen horizontal / slice (mengatur kehalusan keliling horizontal)
+ * @param {number} [st=20] - Jumlah segmen vertikal / stack (mengatur kehalusan lengkungan dari kutub atas ke bawah)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 function zEllipsoid(rx, ry, rz, sl = 32, st = 20) {
@@ -432,10 +572,10 @@ function zEllipsoid(rx, ry, rz, sl = 32, st = 20) {
  * Menghasilkan silinder meruncing dengan radius alas r1, radius atas r2, dan tinggi 1.
  * Dilengkapi dengan tutup atas dan bawah (jika caps = true).
  * Digunakan untuk: lengan baju, lengan bawah, leher, dan kaki zombie.
- * @param {number} r1 - Radius lingkaran bawah (y = -0.5)
- * @param {number} r2 - Radius lingkaran atas (y = +0.5)
- * @param {number} sl - Jumlah segmen melingkar
- * @param {boolean} caps - Apakah diberi penutup alas & atas
+ * @param {number} r1 - Radius lingkaran bawah pada y = -0.5 (mengubah diameter pangkal/bawah)
+ * @param {number} r2 - Radius lingkaran atas pada y = +0.5 (mengubah diameter ujung/atas)
+ * @param {number} [sl=24] - Jumlah segmen melingkar (mengatur kebulatan penampang silinder/frustum)
+ * @param {boolean} [caps=true] - Menentukan apakah diberi penutup alas dan atas (true untuk mesh tertutup/solid, false untuk pipa/lubang)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 function frustum(r1, r2, sl = 24, caps = true) {
@@ -476,9 +616,9 @@ function frustum(r1, r2, sl = 24, caps = true) {
 
 /**
  * cylinder: Shorthand pembangun silinder seragam (radius atas = radius bawah = r).
- * @param {number} r - Radius silinder
- * @param {number} sl - Segmen melingkar
- * @param {boolean} caps - Apakah memiliki tutup
+ * @param {number} r - Radius silinder seragam (mengubah ketebalan silinder dari atas hingga bawah)
+ * @param {number} [sl=24] - Jumlah segmen melingkar (mengatur kebulatan penampang tabung)
+ * @param {boolean} [caps=true] - Menentukan apakah silinder diberi penutup di kedua ujungnya
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 const zCylinder = (r, sl, caps) => frustum(r, r, sl, caps);
@@ -489,10 +629,11 @@ const zCylinder = (r, sl, caps) => frustum(r, r, sl, caps);
  * dengan radius alas r, tinggi h, dan ujung lancip (radius 0).
  * Jika down = false (default), ujung lancip menghadap ke atas (+Y).
  * Jika down = true, ujung lancip menghadap ke bawah (-Y).
- * @param {number} r - Radius lingkaran alas kerucut
- * @param {number} h - Tinggi kerucut
- * @param {number} sl - Segmen melingkar
- * @param {boolean} down - true jika kerucut meruncing ke bawah (-Y)
+ * @param {number} r - Radius lingkaran alas kerucut pada sumbu X (mengubah lebar dasar kerucut)
+ * @param {number} [h=1] - Tinggi total kerucut sepanjang sumbu Y (mengubah tinggi/kelancipan kerucut)
+ * @param {number} [sl=18] - Jumlah segmen melingkar (mengatur kehalusan keliling alas kerucut)
+ * @param {boolean} [down=false] - Arah orientasi kerucut; true jika ujung lancip menghadap ke bawah (-Y), false jika menghadap ke atas (+Y)
+ * @param {number} [rz=r] - Radius lingkaran alas kerucut pada sumbu Z (mengubah kedalaman dasar kerucut jika berbentuk elips; default sama dengan r)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 export function zCone(r, h = 1, sl = 18, down = false, rz = r) {
@@ -536,9 +677,9 @@ export function zCone(r, h = 1, sl = 18, down = false, rz = r) {
  * Menghasilkan balok dengan dimensi lebar (w), tinggi (h), dan kedalaman (d).
  * Memiliki 6 sisi dengan vektor normal tegak lurus per-sisi (flat shading).
  * Digunakan untuk: gigi zombie, sol sepatu, dan ikat pinggang.
- * @param {number} w - Lebar (lebar sumbu X)
- * @param {number} h - Tinggi (tinggi sumbu Y)
- * @param {number} d - Kedalaman (panjang sumbu Z)
+ * @param {number} w - Lebar balok sepanjang sumbu X (mengubah ukuran ke samping)
+ * @param {number} h - Tinggi balok sepanjang sumbu Y (mengubah ukuran ke atas-bawah)
+ * @param {number} d - Kedalaman balok sepanjang sumbu Z (mengubah ukuran tebal ke depan-belakang)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 function zBox(w, h, d) {
@@ -579,8 +720,8 @@ function zBox(w, h, d) {
  * Menghitung posisi titik 3D pada kurva Bézier berorde 3 berdasarkan parameter t [0, 1]
  * dengan formula polinomial Bernstein:
  * B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3
- * @param {Array<Array<number>>} P - Empat titik kontrol [P0, P1, P2, P3]
- * @param {number} t - Parameter interpolasi dari 0.0 sampai 1.0
+ * @param {Array<Array<number>>} P - Empat titik kontrol [P0, P1, P2, P3] (mengatur bentuk dan lintasan kelengkungan kurva)
+ * @param {number} t - Parameter interpolasi dari 0.0 (awal kurva di P0) sampai 1.0 (akhir kurva di P3)
  * @returns {Array<number>} Koordinat titik [x, y, z] pada kurva
  */
 const bz = (P, t) => {
@@ -599,10 +740,10 @@ const bz = (P, t) => {
  * Menyapu (sweeping) penampang lingkaran dengan radius r(t) di sepanjang kurva lintasan 3D.
  * Menggunakan kerangka koordinat lokal Frenet-Serret untuk orientasi penampang.
  * Digunakan untuk: helai rambut zombie dan dasi yang melambai.
- * @param {Function} path - Fungsi parameter lintasan t => [x, y, z]
- * @param {Function} rf - Fungsi profil radius terhadap t => r
- * @param {number} ns - Jumlah segmen sepanjang lintasan
- * @param {number} rs - Jumlah segmen melingkar penampang tabung
+ * @param {Function} path - Fungsi parameter lintasan `(t) => [x, y, z]` (menentukan bentuk alur/tulang lintasan tabung)
+ * @param {Function} rf - Fungsi profil radius `(t) => r` (mengatur tebal-tipisnya diameter tabung di sepanjang lintasan t)
+ * @param {number} [ns=28] - Jumlah segmen pembagian sepanjang lintasan kurva (mengatur kehalusan belokan alur kurva)
+ * @param {number} [rs=10] - Jumlah segmen melingkar penampang tabung (mengatur kebulatan keliling tabung)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 function zTube(path, rf, ns = 28, rs = 10) {
@@ -638,8 +779,8 @@ function zTube(path, rf, ns = 28, rs = 10) {
  * Mengambil sekumpulan titik poligon 2D pada bidang XY, lalu mengekstrusinya
  * sepanjang sumbu Z setebal d, lengkap dengan sisi samping dan tutup depan-belakang.
  * Digunakan untuk: lidah zombie dan ujung dasi berbentuk panah.
- * @param {Array<Array<number>>} pts - Titik-titik poligon 2D [[x0, y0], [x1, y1], ...]
- * @param {number} d - Ketebalan ekstrusi sumbu Z
+ * @param {Array<Array<number>>} pts - Titik-titik poligon 2D `[[x0, y0], [x1, y1], ...]` (mengatur profil bentuk datar poligon yang diekstrusi)
+ * @param {number} d - Ketebalan ekstrusi sepanjang sumbu Z (mengubah ketebalan prisma/volume 3D)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 function prism(pts, d) {
@@ -679,14 +820,14 @@ function prism(pts, d) {
  * Membangun jas yang membungkus tubuh zombie, terbuka di bagian dada/depan,
  * dengan efek compang-camping dan sobekan acak di bagian bawah menggunakan kombinasi
  * beberapa gelombang sinus (multi-frequency wave noise).
- * @param {number} rx - Radius kontur jas sumbu X
- * @param {number} ry - Radius kontur jas sumbu Y
- * @param {number} rz - Radius kontur jas sumbu Z
- * @param {number} open - Sudut bukaan jas di bagian depan (radian)
- * @param {number} phT - Sudut elevasi atas jas (leher)
- * @param {number} phB - Sudut elevasi bawah jas (pinggul)
- * @param {number} nr - Jumlah baris vertikal kisi
- * @param {number} nc - Jumlah kolom keliling kisi
+ * @param {number} rx - Radius kontur jas pada sumbu X (mengatur kelebaran jas ke samping)
+ * @param {number} ry - Radius kontur jas pada sumbu Y (mengatur panjang jas dari atas ke bawah)
+ * @param {number} rz - Radius kontur jas pada sumbu Z (mengatur ketebalan jas ke depan-belakang)
+ * @param {number} open - Sudut bukaan belahan jas di bagian dada depan dalam radian (mengatur seberapa lebar dada jas terbuka)
+ * @param {number} phT - Sudut elevasi bola batas atas jas / leher (mengatur posisi kerah jas)
+ * @param {number} phB - Sudut elevasi bola batas bawah jas / pinggul (mengatur panjang jatuh kain jas ke bawah)
+ * @param {number} [nr=14] - Jumlah baris vertikal kisi mesh jas (mengatur resolusi subdivisi vertikal)
+ * @param {number} [nc=30] - Jumlah kolom keliling kisi mesh jas (mengatur resolusi subdivisi keliling dan detail robekan)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 function jacket(rx, ry, rz, open, phT, phB, nr = 14, nc = 30) {
@@ -728,9 +869,9 @@ function jacket(rx, ry, rz, open, phT, phB, nr = 14, nc = 30) {
  * MESH SEGITIGA: RAGGED (Tepi Kain Sobek / Gerigi Celana)
  * Menghasilkan cincin pita melingkar berujung gerigi zig-zag tajam.
  * Digunakan untuk: efek robekan kain pada ujung celana zombie di dekat lutut/betis.
- * @param {number} r - Radius keliling celana
- * @param {number} h - Kedalaman gerigi robekan
- * @param {number} teeth - Jumlah gigi robekan di sekeliling celana
+ * @param {number} r - Radius keliling celana (mengatur diameter pipa robekan kain celana)
+ * @param {number} h - Kedalaman gerigi robekan celana (mengatur panjang rumbai-rumbai sobekan)
+ * @param {number} [teeth=9] - Jumlah ujung gigi robekan di sekeliling celana (mengatur frekuensi gerigi sobekan)
  * @returns {{p: Float32Array, n: Float32Array, i: Uint16Array}}
  */
 function ragged(r, h, teeth = 9) {
@@ -753,9 +894,18 @@ function ragged(r, h, teeth = 9) {
 
 
 // ============ BENTUK DASAR (unit mesh) ============
+/**
+ * Mengonversi kode warna heksadesimal RGB (contoh: "#ff8800") menjadi array komponen warna ternormalisasi [0.0 - 1.0].
+ * @param {string} h - String heksadesimal warna berformat "#rrggbb" (mengganti nilai warna target yang ingin dikonversi)
+ * @returns {[number, number, number]} Array RGB [r, g, b] dengan rentang nilai 0 hingga 1
+ */
 const hx = (h) =>
   [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16) / 255);
 
+/**
+ * Membangun buffer unit mesh statis gabungan (box, silinder, kerucut, torus, ellipsoid) untuk rendering instanced/primitif lingkungan.
+ * @returns {{ arr: Float32Array, ranges: Array<[number, number]> }} Objek data buffer vertex dan rentang offset segitiga per bentuk primitif
+ */
 function unitMeshes() {
   const A = [],
     ranges = [];

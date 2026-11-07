@@ -50,6 +50,24 @@ const GRAVESLAB_STYLE = {
 };
 
 // ---- Kotak biasa: 6 sisi × 2 segitiga ----
+/**
+ * Menghasilkan daftar titik koordinat segitiga (12 segitiga / 36 titik) untuk balok 6 sisi
+ * berdasarkan batas koordinat minimum dan maksimum pada masing-masing sumbu (AABB).
+ *
+ * @param {number} x0 - Batas koordinat minimum pada sumbu X (sisi kiri balok).
+ *        Utk mengganti: posisi batas horizontal kiri dari balok batu nisan/pelat makam.
+ * @param {number} x1 - Batas koordinat maksimum pada sumbu X (sisi kanan balok).
+ *        Utk mengganti: posisi batas horizontal kanan dari balok batu nisan/pelat makam.
+ * @param {number} y0 - Batas koordinat minimum pada sumbu Y (sisi belakang balok).
+ *        Utk mengganti: posisi batas kedalaman belakang dari balok batu nisan/pelat makam.
+ * @param {number} y1 - Batas koordinat maksimum pada sumbu Y (sisi depan balok).
+ *        Utk mengganti: posisi batas kedalaman depan dari balok batu nisan/pelat makam.
+ * @param {number} z0 - Batas koordinat minimum pada sumbu Z (sisi bawah/dasar balok).
+ *        Utk mengganti: posisi batas dasar vertikal balok (misal dipanjangkan menancap ke bawah tanah).
+ * @param {number} z1 - Batas koordinat maksimum pada sumbu Z (sisi atas/puncak balok).
+ *        Utk mengganti: posisi batas elevasi puncak atas balok batu nisan/pelat makam.
+ * @returns {Array<[number, number, number]>} Array berisi titik-titik vertex [x, y, z] pembentuk segitiga balok.
+ */
 function boxTriangles(x0, x1, y0, y1, z0, z1) {
   const P = (x, y, z) => [x, y, z];
   const tri = [];
@@ -64,6 +82,19 @@ function boxTriangles(x0, x1, y0, y1, z0, z1) {
 }
 
 // ---- Bangun mesh kotak satu batu nisan / pelat makam (ternormalisasi ke [-1, 1]) ----
+/**
+ * Membangun array buffer vertex posisi untuk geometri balok batu nisan atau pelat kuburan,
+ * dengan opsi perpanjangan dasar balok agar menancap ke dalam permukaan tanah (tidak melayang),
+ * lalu menormalisasikan koordinat vertex-nya ke ruang lokal [-1, 1].
+ *
+ * @param {{ nama: string, matrix: number[], pusat: number[], ukuran_proksi: number[] }} ob - Objek data deskripsi batu nisan/pelat dari file data.js.
+ *        - `ob.matrix`: matriks transformasi orientasi & skala dunia. Utk mengganti rotasi, skala, dan posisi dasar objek di scene.
+ *        - `ob.pusat`: offset titik tengah geometri lokal [x, y, z]. Utk mengganti titik pivot balok.
+ *        - `ob.ukuran_proksi`: dimensi radius/setengah ukuran balok per sumbu. Utk mengganti proporsi panjang, lebar, dan tinggi balok nisan.
+ * @param {boolean} [plantToGround=true] - Menentukan apakah dasar bawah balok dipanjangkan menancap ke tanah dasar (GROUND_Y).
+ *        Utk mengganti: perilaku dasar balok (true = nisan/rim diperpanjang menembus tanah agar tidak melayang di lereng bergelombang; false = pelat penutup/cover tetap dengan ketebalan aslinya).
+ * @returns {Float32Array} Array flat vertex buffer [x, y, z, ...] ternormalisasi yang siap digabungkan ke buffer gabungan GPU (UM).
+ */
 function buildBoxMesh(ob, plantToGround = true) {
   const m = ob.matrix;
   const hs = [0, 1, 2].map((a) =>
@@ -87,6 +118,11 @@ function buildBoxMesh(ob, plantToGround = true) {
 
 // Daftarkan mesh tiap batu nisan & pelat makam -> GRAVESTONE_RANGE[indeks objek]
 const GRAVESTONE_RANGE = new Map();
+/**
+ * Fungsi IIFE (Immediately Invoked Function Expression) untuk mengumpulkan seluruh geometri batu nisan
+ * dan pelat makam dari OBJEK_GRAVEYARD, mengonversinya menjadi mesh kotak balok,
+ * lalu menggabungkannya ke dalam Unified Mesh (UM) buffer GPU sekaligus memetakan range indeksnya ke GRAVESTONE_RANGE.
+ */
 (function addGravestonesAndSlabs() {
   const meshes = [];
   OBJEK_GRAVEYARD.forEach((ob, i) => {

@@ -548,7 +548,26 @@ export const OBJEK_GRAVEYARD = [
   const WARNA_BATU = [0.174, 0.168, 0.173];      // warna batu tembok & tiang utama
   const WARNA_TOPI_TIANG = [0.22, 0.21, 0.22];   // warna penutup atas tiang utama
 
-  // Fungsi bantu membuat objek balok di posisi (cx, cy, cz) dengan setengah ukuran (hx, hy, hz)
+  /**
+   * Fungsi bantu untuk membangkitkan objek balok (box/cuboid) berpusat di (cx, cy, cz) dengan setengah ukuran (hx, hy, hz).
+   * @param {string} nama - String nama pengenal unik objek (misal: "TiangUtama.1" atau "TembokKiri").
+   *        Mengubah nama ini memudahkan pelacakan objek pada scene graph atau saat debugging hierarki.
+   * @param {number} cx - Posisi titik pusat balok pada sumbu horizontal X dunia.
+   *        Mengubah cx akan menggeser letak balok ke kiri (nilai berkurang) atau ke kanan (nilai bertambah).
+   * @param {number} cy - Posisi elevasi titik tengah balok pada sumbu vertikal Y dunia.
+   *        Mengubah cy akan menaikkan atau menurunkan posisi balok dari atas permukaan tanah.
+   * @param {number} cz - Posisi kedalaman titik tengah balok pada sumbu Z dunia.
+   *        Mengubah cz akan memindahkan letak balok mendekat ke gerbang kuburan (-Z) atau ke arah belakang (+Z).
+   * @param {number} hx - Setengah dimensi panjang/lebar balok pada sumbu X (half-width).
+   *        Mengubah hx akan memperlebar atau menyempitkan ukuran balok ke samping.
+   * @param {number} hy - Setengah dimensi tinggi balok pada sumbu Y (half-height).
+   *        Mengubah hy akan meninggikan atau merendahkan ukuran fisik balok (tinggi total balok = 2 * hy).
+   * @param {number} hz - Setengah dimensi ketebalan balok pada sumbu Z (half-depth).
+   *        Mengubah hz akan mempertebal atau menipiskan balok pada sumbu kedalaman.
+   * @param {Array<number>} warna - Vektor warna RGB ternormalisasi `[r, g, b]` dalam rentang [0.0 - 1.0].
+   *        Mengubah nilai ini akan mengganti warna material balok (misal: warna batu abu-abu, bata, dsb).
+   * @returns {Object} Definisi objek 3D kuburan berspesifikasi `{ nama, jenis, matrix, pusat, ukuran_proksi, warna }`.
+   */
   function buatBalok(nama, cx, cy, cz, hx, hy, hz, warna) {
     return {
       nama,
@@ -584,6 +603,17 @@ export const OBJEK_GRAVEYARD = [
   });
 
   // 2. TEMBOK BATU POLOS UTUH DI ANTARA TIANG UTAMA (Y = 10 s/d 68)
+  /**
+   * Membuat bentang tembok batu horizontal yang memanjang sejajar sumbu X.
+   * @param {string} nama - Nama pengenal tembok (misal: "TembokDepanKiri", "TembokBelakang").
+   * @param {number} xMulai - Koordinat batas awal sisi kiri bentangan pada sumbu X.
+   *        Mengubah xMulai menggeser titik awal dimulainya tembok dari tiang samping.
+   * @param {number} xAkhir - Koordinat batas akhir sisi kanan bentangan pada sumbu X.
+   *        Mengubah xAkhir menentukan sampai mana ujung tembok membentang sebelum menyentuh tiang berikutnya.
+   * @param {number} zPos - Posisi koordinat garis kedalaman pada sumbu Z tempat tembok diletakkan.
+   *        Mengubah zPos memindahkan posisi garis bentangan tembok maju/mundur.
+   * @returns {void}
+   */
   function buatTembokSejajarX(nama, xMulai, xAkhir, zPos) {
     const tepiKiri = xMulai + 19.2;
     const tepiKanan = xAkhir - 19.2;
@@ -595,6 +625,17 @@ export const OBJEK_GRAVEYARD = [
     );
   }
 
+  /**
+   * Membuat bentang tembok batu vertikal yang memanjang membujur sejajar sumbu Z.
+   * @param {string} nama - Nama pengenal tembok (misal: "TembokKiri", "TembokKanan").
+   * @param {number} zMulai - Koordinat batas depan bentangan tembok pada sumbu Z.
+   *        Mengubah zMulai menentukan posisi pangkal tembok di bagian depan perimeter.
+   * @param {number} zAkhir - Koordinat batas belakang bentangan tembok pada sumbu Z.
+   *        Mengubah zAkhir menentukan seberapa jauh tembok memanjang ke perimeter belakang.
+   * @param {number} xPos - Posisi koordinat garis horizontal pada sumbu X tempat tembok diletakkan.
+   *        Mengubah xPos memindahkan garis perimeter tembok ke sisi lebih luar atau lebih dalam.
+   * @returns {void}
+   */
   function buatTembokSejajarZ(nama, zMulai, zAkhir, xPos) {
     const tepiDepan = zMulai + 19.2;
     const tepiBelakang = zAkhir - 19.2;
@@ -616,6 +657,21 @@ export const OBJEK_GRAVEYARD = [
   // 3. POHON TUA KUBURAN BESAR DI AREA KOSONG (Kanan-Belakang: X = 210, Z = 210)
   //    Bukan kerucut pohon natal, melainkan pohon tua besar bercabang dengan
   //    batang miring, dahan menyebar, dan gumpalan kanopi ellipsoid gelap.
+  /**
+   * Membangun ruas kayu (batang silinder miring atau ranting kerucut meruncing) dari titik pangkal A menuju titik ujung B.
+   * Menghitung orientasi basis vektor ortogonal secara dinamis agar ruas kayu menyambung presisi.
+   * @param {string} nama - Nama pengenal komponen pohon (misal: "Pohon.BatangBawah", "Pohon.DahanKiri", "Pohon.Ranting1").
+   * @param {string} jenis - Jenis primitif geometri yang digunakan: "silinder" (untuk batang/dahan) atau "kerucut" (untuk ranting meruncing).
+   *        Mengubah jenis ini akan menentukan apakah bentuk berpenampang konstan atau mengecil ke ujung.
+   * @param {Array<number>} A - Koordinat 3D titik pangkal ruas kayu `[ax, ay, az]`.
+   *        Mengubah titik A memindahkan lokasi sambungan awal dari tanah atau sendi dahan sebelumnya.
+   * @param {Array<number>} B - Koordinat 3D titik ujung ruas kayu `[bx, by, bz]`.
+   *        Mengubah titik B mengubah arah liukan, panjang bentang, dan kemiringan cabang kayu.
+   * @param {number} r - Jari-jari ketebalan kayu (radius).
+   *        Mengubah nilai r membuat batang/cabang pohon menjadi lebih besar kekar atau lebih ramping.
+   * @param {Array<number>} warna - Warna RGB ternormalisasi `[r, g, b]` kayu (misal: cokelat tua lapuk atau abu-abu gelap).
+   * @returns {Object} Definisi objek 3D segmen pohon berorientasi matriks 4x4.
+   */
   function buatRuasKayu(nama, jenis, A, B, r, warna) {
     const C = [(A[0] + B[0]) * 0.5, (A[1] + B[1]) * 0.5, (A[2] + B[2]) * 0.5];
     const W = [(B[0] - A[0]) * 0.5, (B[1] - A[1]) * 0.5, (B[2] - A[2]) * 0.5];
@@ -637,6 +693,21 @@ export const OBJEK_GRAVEYARD = [
     };
   }
 
+  /**
+   * Membangun gumpalan rimbunan dedaunan kanopi pohon berbentuk quadric ellipsoid.
+   * @param {string} nama - Nama komponen dedaunan (misal: "Pohon.DaunTengah", "Pohon.DaunAtas").
+   * @param {number} cx - Posisi pusat massa daun pada sumbu horizontal X.
+   * @param {number} cy - Elevasi ketinggian pusat massa daun pada sumbu vertikal Y.
+   *        Mengubah cy memposisikan kanopi daun di pucuk pohon atau di cabang bagian bawah.
+   * @param {number} cz - Posisi kedalaman pusat massa daun pada sumbu Z.
+   * @param {number} rx - Jari-jari semi-sumbu X ellipsoid (radius kelebaran daun ke samping).
+   *        Mengubah rx membuat gumpalan kanopi daun melebar ke kiri-kanan.
+   * @param {number} ry - Jari-jari semi-sumbu Y ellipsoid (radius ketebalan tinggi daun).
+   *        Mengubah ry membuat gumpalan daun lebih gepeng atau menggembung tinggi.
+   * @param {number} rz - Jari-jari semi-sumbu Z ellipsoid (radius ketebalan daun ke depan-belakang).
+   * @param {Array<number>} warna - Warna RGB dedaunan kelam malam `[r, g, b]` (misal: hijau tua lumut pekat).
+   * @returns {Object} Definisi objek 3D kanopi daun ellipsoid.
+   */
   function buatRimbunDaun(nama, cx, cy, cz, rx, ry, rz, warna) {
     return {
       nama,
