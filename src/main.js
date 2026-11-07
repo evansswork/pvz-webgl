@@ -18,6 +18,8 @@
    ========================================================================= */
 
 import { cv, gl, createGraveyardScene } from "./env/graveyard/graveyardScene.js";
+import { createSkyScene } from "./env/sky/skyScene.js";
+import { createGrassScene } from "./env/grass/grassScene.js";
 import { createHouseScene } from "./env/house/houseScene.js";
 import { createHighwayScene } from "./env/road/highwayScene.js";
 import { persp, mul, m4, M, Ease } from "./core/math.js";
@@ -30,6 +32,8 @@ import peashooterSpec from "./characters/peashooter/index.js";
 import { createZombieScene } from "./characters/zombie/index.js";
 
 /* ---------------- 1. Environment (tidak diubah) ---------------- */
+const sky = createSkyScene(gl);
+const grass = createGrassScene(gl);
 const graveyard = createGraveyardScene();
 const highway = createHighwayScene(gl);
 const house = createHouseScene(gl);
@@ -172,6 +176,8 @@ function render(dt) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
   const opts = { exposure: NIGHT.exposure };
+  sky.render(VP, eye);
+  grass.render(VP, eye, opts);
   graveyard.render(VP, eye, opts);
   highway.render(VP, eye, opts);
   house.render(VP, eye, opts);

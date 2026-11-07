@@ -2,19 +2,19 @@
  * ==============================================================================
  * GRAVEYARD SCENE ADAPTER (WebGL2, Shaders, & Scene Rendering)
  * ==============================================================================
+ * Modul khusus untuk merender objek-objek batu kuburan (nisan, makam, jalan setapak,
+ * tembok keliling, tiang utama, dan pohon tua).
+ * Langit malam (sky) dan hamparan rumput (grass) telah dipisahkan ke modul
+ * `src/env/sky/skyScene.js` dan `src/env/grass/grassScene.js`.
+ * ==============================================================================
  */
 
 import { OBJEK_GRAVEYARD } from "./data.js";
 import { UM, STONE_RANGE } from "../../core/geometry.js";
 import { GRAVESTONE_RANGE } from "./gravestone.js";
-import { createEnvironment } from "./environment.js";
 
 // =====================================================================
-//  1. SHADER GRAVEYARD
-// =====================================================================
-//  uTerrain = 0/3: batu kuburan (nisan, makam, jalan setapak, tembok)
-//  uTerrain = 1/9: rumput datar (dalam & luar kuburan) + kabut jauh
-//  uTerrain = 10 : titik-titik bintang putih di langit (gl.POINTS)
+//  1. SHADER GRAVEYARD (Khusus Objek Batu Kuburan & Pohon Tua)
 // =====================================================================
 const vs = `#version 300 es
 layout(location=0) in vec3 aP;
@@ -25,7 +25,6 @@ void main() {
   vec3 p = (uR * vec4(aP * uH, 1.0)).xyz + uC;
   vP = (uM * vec4(p, 1.0)).xyz;
   gl_Position = uVP * vec4(vP, 1.0);
-  gl_PointSize = 2.5;
 }`;
 
 const fs = `#version 300 es
@@ -54,24 +53,7 @@ float n3(vec3 p, float sc) {
   return vnoise(p.xz * sc + vec2(p.y * sc * 0.77, p.y * sc * 0.31));
 }
 
-// --- Material 1: Rumput Malam (Dalam & Luar Kuburan) ---
-vec3 grassAlbedo(vec3 p, vec3 n) {
-  float broad = fbm(p.xz * 0.0035);
-  float clump = fbm(p.xz * 0.025 + 7.0);
-  float fine = vnoise(p.xz * 0.4);
-
-  vec3 grassDark = vec3(0.010, 0.025, 0.008);
-  vec3 grassLight = vec3(0.022, 0.042, 0.015);
-  vec3 meadow = vec3(0.016, 0.032, 0.012);
-
-  vec3 col = mix(grassDark, grassLight, clump);
-  col = mix(col, meadow, broad * 0.5);
-  col *= 0.85 + 0.3 * fine;
-
-  return col * (0.75 + 0.25 * n.y);
-}
-
-// --- Material 2: Batu Kuburan Realistis (Nisan, Makam, Jalan Setapak, Tembok) ---
+// --- Material Batu Kuburan Realistis (Nisan, Makam, Jalan Setapak, Tembok) ---
 vec3 stoneAlbedo(vec3 p, vec3 n, vec3 base) {
   float h = max(p.y - 10.535, 0.0);                    // ketinggian dari permukaan tanah
   float grain = n3(p, 1.6);                            // pori-pori/butiran halus batu
@@ -96,12 +78,6 @@ vec3 stoneAlbedo(vec3 p, vec3 n, vec3 base) {
 
 out vec4 fC;
 void main() {
-  // 10 = Titik-titik bintang putih di langit
-  if (uTerrain == 10) {
-    fC = vec4(1.0, 1.0, 1.0, 1.0);
-    return;
-  }
-
   // Hitung normal permukaan otomatis dari turunan ruang layar
   vec3 dx = dFdx(vP);
   vec3 dy = dFdy(vP);
@@ -111,15 +87,12 @@ void main() {
   if (dot(n, v) < 0.0) n = -n;
 
   // Bump normal tipis khusus objek batu agar permukaan balok tampak bertekstur pahatan
-  bool isGrass = (uTerrain == 1 || uTerrain == 9);
-  if (!isGrass) {
-    vec3 bump = vec3(
-      n3(vP + vec3(0.35, 0.0, 0.0), 1.2) - n3(vP - vec3(0.35, 0.0, 0.0), 1.2),
-      n3(vP + vec3(0.0, 0.35, 0.0), 1.2) - n3(vP - vec3(0.0, 0.35, 0.0), 1.2),
-      n3(vP + vec3(0.0, 0.0, 0.35), 1.2) - n3(vP - vec3(0.0, 0.0, 0.35), 1.2)
-    );
-    n = normalize(n + bump * 0.22);
-  }
+  vec3 bump = vec3(
+    n3(vP + vec3(0.35, 0.0, 0.0), 1.2) - n3(vP - vec3(0.35, 0.0, 0.0), 1.2),
+    n3(vP + vec3(0.0, 0.35, 0.0), 1.2) - n3(vP - vec3(0.0, 0.35, 0.0), 1.2),
+    n3(vP + vec3(0.0, 0.0, 0.35), 1.2) - n3(vP - vec3(0.0, 0.0, 0.35), 1.2)
+  );
+  n = normalize(n + bump * 0.22);
 
   // Pencahayaan malam: Ambient langit-tanah + Diffuse sinar bulan + Specular & Rim
   vec3 L = normalize(vec3(0.5, 0.9, 0.4));
@@ -133,13 +106,6 @@ void main() {
   float distCam = length(vP.xz - uCam.xz);
   float fog = smoothstep(1000.0, 4600.0, distCam);
   vec3 fogCol = vec3(0.024, 0.038, 0.068);
-
-  if (isGrass) {
-    vec3 grass = grassAlbedo(vP, n);
-    vec3 litGrass = pow(grass, vec3(0.45)) * l * uEx;
-    fC = vec4(mix(litGrass, fogCol * uEx, fog), uA);
-    return;
-  }
 
   // Objek batu kuburan: warna batu berlumut + pantulan sinar bulan (specular & rim)
   vec3 stone = stoneAlbedo(vP, n, uCol);
@@ -196,7 +162,7 @@ gl.uniformMatrix4fv(U.uR, false, ID4);
 // =====================================================================
 /**
  * Inisialisasi dan konfigurasi scene lingkungan Kuburan (Graveyard).
- * Mengelola VAO primitif terpadu, lingkungan langit/tanah, serta rendering nisan dan tembok.
+ * Mengelola VAO primitif terpadu serta rendering nisan, makam, jalan setapak, tembok, tiang, dan pohon tua.
  * @returns {{render: Function, getTerrainHeight: Function}} Objek pengontrol scene graveyard.
  */
 export function createGraveyardScene() {
@@ -220,8 +186,6 @@ export function createGraveyardScene() {
     return 10.535;
   }
 
-  const env = createEnvironment(gl, U, ID4);
-
   /**
    * Menggambar seluruh objek 3D statis kuburan (nisan makam, jalan setapak batu, tembok perimeter, tiang, dan pohon tua).
    * Melakukan iterasi terhadap array data `OBJEK_GRAVEYARD` dan mengirimkan uniform matriks, ukuran proksi, serta warna ke GPU.
@@ -232,12 +196,6 @@ export function createGraveyardScene() {
     gl.uniformMatrix4fv(U.uR, false, ID4);
 
     OBJEK_GRAVEYARD.forEach((ob, i) => {
-      if (ob.nama === "Plane") {
-        env.drawTerrain(1);
-        gl.bindVertexArray(pv);
-        return;
-      }
-
       let k = 0;
       if (ob.jenis === "silinder") k = 1;
       else if (ob.jenis === "kerucut") k = 2;
@@ -257,7 +215,7 @@ export function createGraveyardScene() {
 
       gl.uniformMatrix4fv(U.uM, false, ob.matrix);
       gl.uniform3fv(U.uC, ob.pusat);
-      gl.uniform3fv(U.uH, ob.nama === "Plane" ? [1, 1, 0.004] : ob.ukuran_proksi);
+      gl.uniform3fv(U.uH, ob.ukuran_proksi);
       gl.uniform3fv(U.uCol, ob.warna);
       gl.uniform1f(U.uA, 1);
 
@@ -270,7 +228,7 @@ export function createGraveyardScene() {
   }
 
   /**
-   * Render utama lingkungan kuburan per frame.
+   * Render utama objek-objek batu kuburan per frame.
    * @param {Float32Array|Array<number>} VP - Matriks gabungan Proyeksi-Pandang (View-Projection Matrix $P \times V$).
    *        Mengubah VP akan mengubah sudut pandang kamera, perspektif FOV, atau posisi kamera terhadap kuburan.
    * @param {Array<number>} eye - Koordinat posisi kamera pengamat di dunia 3D `[x, y, z]`.
@@ -289,9 +247,6 @@ export function createGraveyardScene() {
     gl.uniform1f(U.uEx, exposure);
     gl.uniformMatrix4fv(U.uR, false, ID4);
     gl.disable(gl.BLEND);
-
-    env.renderSky(eye);
-    env.renderLandscape();
 
     drawShapes();
   }

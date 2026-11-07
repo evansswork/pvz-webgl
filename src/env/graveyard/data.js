@@ -1,21 +1,13 @@
 // =====================================================================
 //  DATA OBJEK GRAVEYARD
 // =====================================================================
-//  1. Objek statis di dalam kuburan (Plane + Cube.001 s/d Cube.064).
+//  1. Objek statis batu di dalam kuburan (Cube.001 s/d Cube.064).
 //  2. Tiang utama (di pintu masuk & 4 pojok) serta tembok batu bawah
 //     polos utuh (tanpa tiang tengah dan tanpa pagar besi)
 //     dibangkitkan di bagian bawah file.
 // =====================================================================
 
 export const OBJEK_GRAVEYARD = [
-  {
-    nama: "Plane",
-    jenis: "plane",
-    matrix: [537.8171, 0, 0, 0, 0, -0.0001, -660.3497, 0, 0, 100, 0, 0, 0, 10.5348, -134.4178, 1],
-    pusat: [0, 0, 0],
-    ukuran_proksi: [1, 1, 0.05],
-    warna: [0.308, 0.523, 0.121],
-  },
   {
     nama: "Cube.001",
     jenis: "balok",
